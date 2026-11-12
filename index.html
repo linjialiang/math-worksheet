@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>冒险岛班 算术练习卷生成器 · A4 可打印</title>
 <style>
   *{box-sizing:border-box}
@@ -402,6 +402,8 @@
     .pages{display:block;padding:0;background:#e9edf4;width:auto;
            flex:1 1 auto;min-height:0;overflow:hidden;position:relative;
            touch-action:none}
+    .app{touch-action:none}
+    .panel .scroll{touch-action:pan-y}
     .pstack{display:block;position:absolute;left:0;top:0;transform-origin:0 0}
     .pstack .page{box-shadow:0 4px 18px rgba(15,23,42,.16)}
     .zoomctl{display:flex}
@@ -1928,11 +1930,13 @@
 
   pagesEl.addEventListener('touchstart', e => {
     if(e.touches.length === 2){
+      const a = e.touches[0], b = e.touches[1];
+      const midX = (a.clientX + b.clientX) / 2, midY = (a.clientY + b.clientY) / 2;
       pinch = {
-        d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY),
+        d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
         k: viewK,
-        ax: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-        ay: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        cx: (midX - viewTx) / viewK,   // 内容锚点：捏合时保持它贴在两指中点
+        cy: (midY - viewTy) / viewK
       };
       drag = null; swipe = null;
     } else if(e.touches.length === 1){
@@ -1944,12 +1948,15 @@
 
   pagesEl.addEventListener('touchmove', e => {
     if(e.touches.length === 2 && pinch){
-      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const a = e.touches[0], b = e.touches[1];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if(pinch.d <= 0 || d <= 0) return;
+      const midX = (a.clientX + b.clientX) / 2, midY = (a.clientY + b.clientY) / 2;
       const newK = Math.max(0.12, Math.min(3, pinch.k * d / pinch.d));
-      // 以捏合中点为锚点缩放
-      viewTx = pinch.ax - (pinch.ax - viewTx) * newK / pinch.k;
-      viewTy = pinch.ay - (pinch.ay - viewTy) * newK / pinch.k;
+      // 让内容锚点始终贴在两指中点：既能缩放又跟手平移
       viewK = newK;
+      viewTx = midX - pinch.cx * newK;
+      viewTy = midY - pinch.cy * newK;
       state.zoom = Math.max(1, Math.min(2.5, newK / fitK0()));
       const zv = $('#zoomVal'); if(zv) zv.textContent = Math.round(state.zoom * 100) + '%';
       showZoom();
