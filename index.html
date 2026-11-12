@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>冒险岛班 算术练习卷生成器 · A4 可打印</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font:14px/1.55 "Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    color:#1e293b;background:#eef1f6;-webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font-family:inherit}
+
+  /* ---------------- 布局 ---------------- */
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ---------------- 左侧参数面板 ---------------- */
+  .panel{
+    width:336px;flex:0 0 336px;background:#fff;border-right:1px solid #e3e8ef;
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .brand{padding:18px 20px 14px;border-bottom:1px solid #eef1f6}
+  .brand h1{margin:0;font-size:15px;font-weight:700;letter-spacing:.2px}
+  .brand p{margin:4px 0 0;font-size:11.5px;color:#7c8899;line-height:1.5}
+  .scroll{flex:1;overflow:auto;padding:16px 20px 24px;min-height:0}
+  .grp{margin-bottom:20px}
+  .grp:last-child{margin-bottom:0}
+  .lab{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:600;color:#334155;margin-bottom:9px}
+  .lab .sub{font-weight:400;color:#94a3b8;font-size:11px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    appearance:none;border:1px solid #dbe2ea;background:#fff;color:#475569;
+    padding:5px 11px;border-radius:7px;font-size:12.5px;cursor:pointer;
+    transition:.14s;line-height:1.4;
+  }
+  .chip:hover{border-color:#b9c4d3;background:#f8fafc}
+  .chip.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff;box-shadow:0 1px 3px rgba(29,78,216,.25)}
+  .chip.on:hover{background:#1a45c0}
+
+  .numline{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .numline input[type=number]{
+    width:100%;padding:7px 10px;border:1px solid #dbe2ea;border-radius:7px;
+    font-size:13px;color:#1e293b;outline:none;
+  }
+  .numline input[type=number]:focus{border-color:#93b4f5;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+
+  .seg{display:flex;background:#f1f4f9;border-radius:8px;padding:3px;gap:2px}
+  .seg button{
+    flex:1;appearance:none;border:0;background:transparent;color:#64748b;
+    padding:6px 0;border-radius:6px;font-size:12.5px;cursor:pointer;transition:.14s;
+  }
+  .seg button.on{background:#fff;color:#1d4ed8;font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.1)}
+  .seg button:disabled{opacity:.35;cursor:not-allowed}
+
+  .sw{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0}
+  .sw .txt{font-size:12.5px;color:#334155;line-height:1.45}
+  .sw .txt small{display:block;color:#94a3b8;font-size:11px;margin-top:1px}
+  .toggle{
+    position:relative;width:38px;height:21px;flex:0 0 38px;border-radius:11px;
+    background:#d7dee8;cursor:pointer;transition:.18s;border:0;padding:0;
+  }
+  .toggle::after{
+    content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;
+    border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 2px rgba(15,23,42,.25);
+  }
+  .toggle.on{background:#1d4ed8}
+  .toggle.on::after{transform:translateX(17px)}
+
+  .textin{
+    width:100%;padding:7px 10px;border:1px solid #dbe2ea;border-radius:7px;
+    font-size:12.5px;color:#1e293b;outline:none;
+  }
+  .textin:focus{border-color:#93b4f5;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+
+  .note{
+    margin:-8px 0 18px;padding:8px 10px;border-radius:8px;background:#fff8eb;
+    border:1px solid #fde9c3;font-size:11.5px;color:#8a5a11;line-height:1.55;
+  }
+  .note.hide{display:none}
+  .hide{display:none!important}
+
+  /* 下拉框：去掉原生样式，换细致的 chevron + 悬停/聚焦反馈 */
+  .sel{
+    appearance:none;-webkit-appearance:none;
+    width:100%;height:30px;padding:0 28px 0 10px;
+    border:1px solid #dce3ec;border-radius:8px;background-color:#fff;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.8 4.6 6 7.8l3.2-3.2' fill='none' stroke='%238fa0b5' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    font-size:12.5px;color:#1e293b;cursor:pointer;
+    transition:border-color .15s, box-shadow .15s, background-color .15s;
+  }
+  .sel:hover{border-color:#bcc8d8;background-color:#fbfcfe}
+  .sel:focus{outline:none;border-color:#2f6fed;background-color:#fff;box-shadow:0 0 0 3px rgba(47,111,237,.14)}
+
+  .secs{display:flex;flex-direction:column;gap:8px}
+  .seccard{border:1px solid #e3e8ef;border-radius:9px;overflow:hidden;background:#fff}
+  .sechd{display:flex;align-items:center;gap:7px;padding:7px 9px;background:#f8fafc}
+  .seccard.off .sechd{background:#f3f5f9}
+  .seccard.off .secname{color:#b6c0cf}
+  .secname{font-size:12.5px;font-weight:600;color:#334155;flex:1;transition:.15s}
+  .stepper{display:inline-flex;align-items:center;height:26px;border:1px solid #dbe2ea;border-radius:8px;overflow:hidden;background:#fff;flex:0 0 auto}
+  .stepper .stp{
+    width:22px;height:100%;border:0;background:#f7f9fc;color:#64748b;
+    font-size:14px;line-height:1;cursor:pointer;padding:0;transition:background .12s,color .12s;
+  }
+  .stepper .stp:hover{background:#eef2f8;color:#1e293b}
+  .stepper .stp:active{background:#e2e9f3}
+  .stepper .stp:disabled{color:#cbd5e1;cursor:not-allowed;background:#fafbfd}
+  .stepper .seccount{
+    width:36px;height:100%;border:0;padding:0;background:#fff;
+    font-size:12.5px;font-weight:700;color:#1d4ed8;text-align:center;
+  }
+  .stepper .seccount:focus{outline:none;background:#fff}
+  .pagehint{flex:1 1 auto;min-width:0;font-size:11.5px;color:#94a3b8;line-height:1.35}
+  .stepper.wide .stp{width:30px;font-size:15px}
+  .stepper.wide .seccount{width:52px}
+  .stepper .seccount::-webkit-outer-spin-button,
+  .stepper .seccount::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stepper .seccount{-moz-appearance:textfield;appearance:textfield}
+  .seccard .unit{font-size:11px;color:#94a3b8}
+  .sechd-main{flex:1;min-width:0}
+  .secsum{padding:0 9px 8px 30px;font-size:10.5px;color:#94a3b8;line-height:1.55}
+  .seccard.off .secsum{color:#c3cad6}
+  .secedit{border:1px solid #dbe2ea;background:#fff;color:#475569;cursor:pointer;font-size:11px;padding:4px 9px;border-radius:6px;flex:0 0 auto}
+  .secedit:hover{border-color:#94a3b8;color:#1e293b}
+
+  /* 设置弹窗 */
+  .modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center}
+  .modal.hide{display:none}
+  .modal-mask{position:absolute;inset:0;background:rgba(15,23,42,.45)}
+  .modal-box{position:relative;width:330px;background:#fff;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.3);overflow:hidden}
+  .modal-hd{padding:14px 16px 11px;font-size:13.5px;font-weight:700;border-bottom:1px solid #eef1f6}
+  .modal-bd{padding:13px 16px 3px}
+  .mrow{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .mrow .rl{font-size:11.5px;color:#94a3b8;flex:0 0 58px;white-space:nowrap}
+  .modal-ft{display:flex;gap:9px;padding:10px 16px 16px}
+  .modal-ft .btn,.modal-ft .btn.ghost{flex:1 1 0;padding:10px 14px}
+  .sel.sm{flex:0 0 116px;height:30px;padding:0 27px 0 10px;background-position:right 8px center}
+  .secnum{
+    width:66px;height:30px;padding:0 6px;border:1px solid #dce3ec;border-radius:8px;
+    font-size:12.5px;text-align:center;color:#1e293b;transition:.15s;
+  }
+  .secnum::-webkit-outer-spin-button,
+  .secnum::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .secnum{-moz-appearance:textfield;appearance:textfield}
+  .secnum:hover{border-color:#bcc8d8}
+  .secnum:focus{outline:none;border-color:#2f6fed;box-shadow:0 0 0 3px rgba(47,111,237,.14)}
+  .chips.mini{gap:5px}
+  .chips.mini .chip{padding:3px 8px;font-size:11.5px;border-radius:6px}
+  .seg.mini{padding:2px;border-radius:6px;flex:0 0 120px}
+  .seg.mini button{padding:3px 0;font-size:11.5px;border-radius:5px}
+  .sw2{width:16px;height:16px;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;flex:0 0 16px;padding:0;position:relative}
+  .sw2.on{background:#1d4ed8;border-color:#1d4ed8}
+  .sw2.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .hintline{margin-top:7px;font-size:11.5px;color:#94a3b8;line-height:1.5}
+
+  .stat{
+    background:#f6f8fc;border:1px solid #e8edf5;border-radius:9px;
+    padding:11px 12px;font-size:12px;color:#5a6b82;line-height:1.75;
+  }
+  .stat b{color:#1e293b;font-weight:600}
+  .stat .warn{color:#b45309}
+
+  .actions{
+    padding:12px 20px 16px;border-top:1px solid #eef1f6;background:#fff;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .arow{display:flex;gap:9px}
+  .arow .btn{flex:1 1 0;min-width:0;padding:10px 4px;font-size:11.5px;white-space:nowrap}
+  .btn{
+    appearance:none;border:0;border-radius:8px;padding:10px 14px;font-size:13px;
+    cursor:pointer;transition:.15s;font-weight:600;flex:1;
+  }
+  .seedin{flex:1 1 auto;min-width:0;width:auto}
+  .seedin::-webkit-outer-spin-button,
+  .seedin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .seedin{-moz-appearance:textfield;appearance:textfield}
+  .btn.mini{
+    flex:0 0 auto;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;
+    padding:0 14px;font-size:12px;border-radius:8px;height:auto;
+  }
+  .btn.ghost{background:#eef1f6;color:#334155}
+  .btn.tint{background:#eaf1ff;color:#1d4ed8}
+  .btn.tint:hover{background:#dfe9ff}
+  .btn:disabled{opacity:.6;cursor:progress}
+  .btn.ghost:hover{background:#e3e8ef}
+  .btn.primary{background:#1d4ed8;color:#fff;box-shadow:0 1px 3px rgba(29,78,216,.3)}
+  .btn.primary:hover{background:#1a45c0}
+
+  /* ---------------- 右侧预览区 ---------------- */
+  .stage{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  .bar{
+    padding:10px 22px;background:rgba(255,255,255,.72);border-bottom:1px solid #e3e8ef;
+    display:flex;align-items:center;gap:14px;font-size:12px;color:#64748b;flex:0 0 auto;
+  }
+  .bar .dot{width:6px;height:6px;border-radius:50%;background:#22c55e}
+  .bar .sep{flex:1}
+  .bar span.hl{color:#1e293b;font-weight:600}
+  .bar .tipbar{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+  .pages{
+    flex:1;overflow:auto;padding:26px 26px 60px;display:flex;flex-direction:column;
+    align-items:center;gap:22px;min-height:0;background:#e9edf4;
+  }
+
+  /* ---------------- A4 页面 ---------------- */
+  .page{
+    --fs:13.5px;--row:9mm;--col:44mm;
+    /* 高度故意比 A4（297mm）少 0.5mm：与纸张等高时浏览器换算成 px 的舍入误差
+       会让内容溢出 0.0x px，打印/另存 PDF 时就在末尾多顶出一张空白页 */
+    width:210mm;height:296.5mm;flex:0 0 auto;background:#fff;padding:11mm 13mm;
+    box-shadow:0 3px 14px rgba(15,23,42,.14);display:flex;flex-direction:column;
+    overflow:hidden;color:#0f172a;position:relative;
+  }
+  .p-head{
+    flex:0 0 auto;border-bottom:1.6px solid #0f172a;padding-bottom:2mm;margin-bottom:2.6mm;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;
+  }
+  .p-title{
+    font-size:15px;font-weight:700;letter-spacing:.4px;text-align:left;
+    flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .p-meta{
+    display:flex;align-items:flex-end;gap:5mm;font-size:9.5px;color:#334155;flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .p-meta i.u{display:inline-block;border-bottom:.9px solid #64748b;height:10px;width:22mm;vertical-align:-1px}
+  .p-meta i.u.s{width:15mm}
+
+  .sec{flex:0 0 auto;margin-bottom:2.2mm}
+  .sec-h{
+    display:flex;align-items:baseline;gap:6px;font-size:11.5px;font-weight:700;
+    color:#0f172a;margin-bottom:1mm;letter-spacing:.2px;
+  }
+  .sec-h .tip{font-weight:400;font-size:9.5px;color:#64748b}
+  .sec-h .cnt{font-weight:400;font-size:9.5px;color:#94a3b8}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--col),1fr));gap:0 4mm}
+  /* 基础算式最短（两数 + 一个括号），4 列；巩固稍长，3 列；拓展最长，2 列 */
+  .sec[data-key="basic"] .grid{grid-template-columns:repeat(4,1fr)}
+  .sec[data-key="solid"] .grid{grid-template-columns:repeat(3,1fr)}
+  .q{
+    height:var(--row);display:flex;align-items:center;overflow:hidden;
+    font-size:var(--fs);white-space:nowrap;padding-right:1.2mm;
+  }
+  .q .idx{
+    flex:0 0 auto;color:#94a3b8;font-size:.74em;width:2.1em;text-align:right;
+    margin-right:.45em;font-variant-numeric:tabular-nums;
+  }
+  .eq{display:flex;align-items:center;gap:.26em;flex:1 1 auto;min-width:0;font-variant-numeric:tabular-nums}
+  .eq .side{display:inline-flex;align-items:center;gap:.26em;min-width:0}
+
+  .eq .op{color:#0f172a;padding:0 .12em}
+  /* 个位数与两位数等宽，且居中显示（整列数字位上下对齐） */
+  .eq .num{
+    color:#0f172a;display:inline-block;
+    min-width:calc(var(--dg,2) * .58em);text-align:center;
+  }
+  /* 运算子（填数）= 括号，框宽随答案位数 --dg 自适应：
+     1 位 ≈1.6em，2 位 ≈2.3em（10~99 能舒展开写两个数字），3 位 ≈2.9em */
+  .eq .blk{
+    display:inline-flex;align-items:center;justify-content:space-between;
+    width:calc(0.92em + var(--dg,1) * 0.6em);height:1.36em;
+    border:0;background:transparent;flex:0 0 auto;
+    font-style:normal;color:#334155;letter-spacing:.02em;
+  }
+  .eq .blk::before{content:"("}
+  .eq .blk::after{content:")"}
+  /* 运算符 = 实线圆圈：直径略大于数字字高，底部刚好落在基线上，不额外偏移 */
+  .eq .blk.op{
+    width:.94em;height:.94em;border-radius:50%;border:1px solid #475569;
+    position:relative;top:.07em;      /* 数字墨迹中心比行盒中心低，圆圈跟着下移才对得齐 */
+  }
+  .eq .blk.op::before,.eq .blk.op::after{content:none}
+  /* 比较符号 = 虚线圆圈 */
+  .eq .blk.cmp{
+    width:1.04em;height:1.04em;border-radius:50%;border:1px dashed #475569;background:#fff;
+    position:relative;top:.07em;
+  }
+  .eq .blk.cmp::before,.eq .blk.cmp::after{content:none}
+  .eq .eql{margin:0 .3em;font-weight:600}
+  /* 答案填在括号/圆圈里（红色） */
+  .eq .blk.filled{justify-content:center;gap:.02em}
+  .eq .blk.filled b{color:#dc2626;font-weight:700;font-size:.9em;line-height:1}
+  .eq .blk.op.filled b,.eq .blk.cmp.filled b{font-size:.84em}
+  /* 全角＋－/比较符的字形墨迹天然偏下，按实测值上移，使其落在圆圈正中 */
+  /* 微调一律用 padding 而非 transform/left：
+     导出走「SVG→画布」渲染，transform 在那里与屏幕不完全一致，padding 则是纯布局，两边必然相同。
+     flex 居中下加大某一侧 padding，内容会朝反方向移 padding/2 */
+  .eq .blk.op.filled b{line-height:1;padding-bottom:.16em}
+  .eq .blk.cmp.filled b{line-height:1;padding-bottom:.16em}
+  .eq .blk.cmp.filled b.gt{padding-left:.14em}
+  .eq .blk.cmp.filled b.lt{padding-right:.14em}
+
+  .p-foot{
+    flex:0 0 auto;margin-top:auto;padding-top:2mm;border-top:.8px solid #e2e8f0;
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:9px;color:#64748b;
+  }
+  .p-foot i.u{display:inline-block;border-bottom:.8px solid #94a3b8;height:9px;min-width:34mm;vertical-align:-1px}
+  .p-foot span:last-child{color:#94a3b8}
+
+  /* 答案页 */
+  /* 每页 50 题：答案页也用 2 列，与试卷列位对应，字号可以放大 */
+  .ans-grid{
+    flex:1;display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:1fr;
+    gap:0 8mm;margin-top:2mm;
+  }
+  .ans{
+    display:flex;align-items:center;gap:8px;font-size:15px;
+    border-bottom:.6px solid #e6ebf2;overflow:hidden;white-space:nowrap;
+  }
+  .ans b{color:#94a3b8;font-weight:400;font-size:12px;min-width:2.2em;text-align:right}
+  .ans span{color:#0f172a;font-weight:600;font-variant-numeric:tabular-nums}
+  .ans span.open{color:#94a3b8;font-weight:400;font-size:10px}
+
+  .empty-tip{
+    margin:auto;padding:60px 40px;text-align:center;color:#94a3b8;
+    font-size:16px;font-weight:600;line-height:2;
+  }
+  .empty-tip span{font-size:12.5px;font-weight:400;color:#b6c0cf}
+
+  /* 手机端专用元素（桌面隐藏） */
+  .mbar,.fab,.sheet-mask{display:none}
+  .edge-tip{
+    position:fixed;left:50%;top:50%;z-index:70;
+    transform:translate(-50%,-50%) scale(.96);
+    padding:10px 18px;border-radius:12px;background:rgba(15,23,42,.72);color:#fff;
+    font-size:13px;letter-spacing:.4px;white-space:nowrap;
+    opacity:0;pointer-events:none;transition:opacity .55s ease, transform .3s ease;
+  }
+  .edge-tip.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .pagetip{
+    display:none;position:fixed;left:50%;bottom:16px;z-index:70;
+    transform:translateX(-50%);
+    padding:6px 15px;border-radius:999px;background:rgba(15,23,42,.72);color:#fff;
+    font-size:12.5px;font-weight:600;letter-spacing:.5px;font-variant-numeric:tabular-nums;
+    opacity:0;pointer-events:none;transition:opacity .5s ease;
+  }
+  .pagetip.show{opacity:1}
+
+  /* ---------------- 手机 / 窄屏 ---------------- */
+  @media (max-width: 900px){
+    .app{flex-direction:column;height:100vh;height:100dvh;min-height:0;overflow:hidden}
+    .pager{gap:6px;padding:8px 10px}
+    .pgnum{min-width:22px;font-size:12px}
+    /* 设置面板 → 右侧手风琴抽屉 */
+    .panel{
+      position:fixed;top:0;right:0;bottom:0;z-index:60;
+      width:min(88vw,340px);max-height:none;border:0;border-radius:14px 0 0 14px;
+      background:rgba(255,255,255,.95);
+      -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+      box-shadow:-12px 0 44px rgba(15,23,42,.22);
+      transform:translateX(102%);
+      transition:transform .36s cubic-bezier(.22,1.08,.36,1);
+      will-change:transform;
+    }
+    .panel.open{transform:none}
+    .panel .scroll{max-height:none;overflow:auto;flex:1 1 auto;min-height:0}
+    .panel .actions{display:none}
+    /* 遮罩 */
+    .sheet-mask{
+      display:block;position:fixed;inset:0;z-index:55;
+      background:rgba(15,23,42,.35);
+      opacity:0;pointer-events:none;transition:opacity .25s;
+    }
+    .sheet-mask.on{opacity:1;pointer-events:auto}
+
+    /* 悬浮设置按钮 */
+    .fab{
+      display:block;position:fixed;right:16px;bottom:118px;z-index:50;
+      width:54px;height:54px;border-radius:50%;border:0;
+      background:#1d4ed8;color:#fff;font-size:12.5px;font-weight:600;letter-spacing:1px;
+      box-shadow:0 10px 24px rgba(29,78,216,.42);cursor:pointer;
+    }
+    .fab:active{transform:scale(.96)}
+
+    /* 顶部操作条 */
+    .mbar{
+      display:flex;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid #e3e8ef;
+      position:sticky;top:0;z-index:40;
+    }
+    .mbtn{
+      flex:1 1 0;min-width:0;padding:9px 2px;border:0;border-radius:9px;
+      background:#eef1f6;color:#334155;font-size:12px;font-weight:600;
+      white-space:nowrap;cursor:pointer;
+    }
+    .mbtn.primary{background:#1d4ed8;color:#fff}
+    .mbtn.tint{background:#eaf1ff;color:#1d4ed8}
+    .mbtn.sw{background:#eef1f6;color:#64748b}
+    .mbtn.sw.on{background:#1d4ed8;color:#fff}
+    .mbtn:active{opacity:.85}
+    body.lock{overflow:hidden}
+    .stage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+    .mbar,.bar{flex:0 0 auto}
+    .bar{flex-wrap:wrap;gap:6px 12px;padding:8px 14px;font-size:11.5px}
+    .bar .tipbar, .bar .sep{display:none}
+    .pages{display:block;padding:0;background:#e9edf4;width:auto;
+           flex:1 1 auto;min-height:0;overflow:hidden;position:relative;
+           touch-action:none}
+    .pstack{display:block;position:absolute;left:0;top:0;transform-origin:0 0}
+    .pstack .page{box-shadow:0 4px 18px rgba(15,23,42,.16)}
+    .zoomctl{display:flex}
+    .stage{overflow:hidden}
+    html,body{max-width:100%;overflow-x:hidden}
+    .page{transform-origin:top left;margin:0}
+    /* 触摸目标放大 */
+    .stepper{height:32px}
+    .stepper .stp{width:28px;font-size:16px}
+    .stepper .seccount{width:44px;font-size:14px}
+    .secedit{padding:7px 12px}
+    .sw2{width:20px;height:20px;flex-basis:20px}
+    .arow .btn{padding:12px 6px;font-size:13px}
+    .sw2.on::after{left:5px;top:2px}
+    .modal-box{width:min(330px,92vw)}
+  }
+
+  /* 只显示试卷（便于单独截图/打印预览） */
+  body.bare .panel, body.bare .bar{display:none}
+  .pstack{display:flex;flex-direction:column;align-items:center;gap:22px;transform-origin:top left}
+  .page.off-page{display:none!important}
+
+  /* 底部翻页条 */
+  .pager{
+    flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:8px 14px;background:rgba(255,255,255,.86);border-top:1px solid #e3e8ef;
+  }
+  .pager.hide{display:none}
+  .pgbtn{
+    width:30px;height:30px;border-radius:9px;border:1px solid #dbe2ea;background:#fff;
+    color:#475569;font-size:16px;line-height:1;cursor:pointer;transition:.15s;padding:0;
+  }
+  .pgbtn:hover:not(:disabled){border-color:#b9c4d2;color:#1e293b}
+  .pgbtn:disabled{opacity:.35;cursor:not-allowed}
+  .pgnums{display:flex;align-items:center;gap:3px;margin:0 6px}
+  .pgnum{
+    min-width:26px;height:26px;border:0;background:transparent;border-radius:7px;
+    color:#94a3b8;font-size:12.5px;font-weight:600;cursor:pointer;padding:0 6px;transition:.15s;
+  }
+  .pgnum:hover{background:#eef2f8;color:#475569}
+  .pgnum.on{color:#1d4ed8;font-weight:800;background:#e9f0ff}
+  .zoomctl{display:none;align-items:center;font-size:12px;font-weight:600;color:#475569}
+  #zoomVal{min-width:40px;text-align:center;font-variant-numeric:tabular-nums}
+
+  body.bare .pages{padding:0;background:#fff;display:block}
+  body.bare .page{margin:0;box-shadow:none}
+
+  /* ---------------- 打印 ---------------- */
+  @page{size:A4 portrait;margin:0}
+  @media (max-width: 900px){
+    .zoomctl{
+      display:flex;position:fixed;left:12px;bottom:118px;z-index:45;
+      align-items:center;padding:5px 12px;
+      background:rgba(15,23,42,.72);color:#fff;border:0;border-radius:999px;
+      box-shadow:0 6px 18px rgba(15,23,42,.18);
+      -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+      opacity:0;pointer-events:none;transition:opacity .5s ease;
+    }
+    .zoomctl.show{opacity:1}
+    .pager{display:none!important}
+    .pagetip{display:block}
+  }
+
+  @media print{
+    html,body{height:auto;margin:0;padding:0;background:#fff}
+    .app{display:block;height:auto;overflow:visible;margin:0}
+    .panel,.bar{display:none!important}
+    .stage{display:block;overflow:visible;margin:0;padding:0}
+    .pages{display:block;overflow:visible;padding:0;margin:0;background:#fff;gap:0;max-height:none!important}
+    /* 预览是"单页视图"，但打印必须把被隐藏的页全部放出来 */
+    .pstack{display:block!important;position:static!important;zoom:1!important;transform:none!important;left:auto!important;top:auto!important}
+    .page.off-page{display:block!important}
+    .pager,.mbar,.fab,.sheet-mask,.edge-tip,.zoomctl{display:none!important}
+    /* 纸张宽度约 794px 会命中 900px 的移动端媒体查询，这里把面板恢复成普通文档流 */
+    .panel{display:none!important}
+    .page{
+      display:block;margin:0;padding:11mm 13mm;box-shadow:none;border:0;
+      break-inside:avoid;page-break-inside:avoid;
+      break-after:auto;page-break-after:auto;
+    }
+    /* 用「页前断」而不是「页后断」：最后一页后面不会残留断点，杜绝尾页空白 */
+    .page + .page{break-before:page;page-break-before:always}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ 参数面板 ============ -->
+  <aside class="panel">
+    <div class="brand">
+      <h1>冒险岛班 算术练习卷生成器</h1>
+      <p>A4 · 每张最多 100 题 · 三节可独立配置数值范围与题型</p>
+    </div>
+
+    <div class="scroll">
+      <div class="grp">
+        <div class="lab">打印张数<span class="sub">1 张最多 100 题 · 最多 5 张</span></div>
+        <div class="numline">
+          <div class="stepper wide" id="pageStepper">
+            <button class="stp" data-p="-1" title="减少 1 张">−</button>
+            <input class="seccount" type="number" id="inpPages" min="1" max="5" step="1" value="1">
+            <button class="stp" data-p="1" title="增加 1 张">+</button>
+          </div>
+          <span class="pagehint" id="pageNote"></span>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="lab">章节与题量<span class="sub" id="budgetNote">合计 0 / 100 题</span></div>
+        <div class="secs" id="secList"></div>
+        <div class="hintline">点方块显示/隐藏章节；点「修改」设置该章节的数值范围、运算符与题型</div>
+      </div>
+
+      <div class="grp">
+        <div class="sw">
+          <div class="txt">题中直接显示答案
+            <small>括号、圆圈内用红色填入答案</small>
+          </div>
+          <button class="toggle" id="tgAns"></button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="lab">卷面标题<span class="sub">留空自动生成</span></div>
+        <div class="numline"><input type="text" class="textin" id="inpTitle" placeholder="自动生成"></div>
+      </div>
+
+      <div class="grp">
+        <div class="lab">页脚日期<span class="sub">留空则印下划线，可填单日或区间</span></div>
+        <div class="numline"><input type="text" class="textin" id="inpDate" placeholder="如 11月12日　或　11月12日–15日"></div>
+      </div>
+
+      <div class="grp">
+        <div class="lab">随机种子<span class="sub">同种子 + 同设置 = 完全相同的卷</span></div>
+        <div class="numline">
+          <input type="number" class="textin seedin" id="inpSeed" value="20261111">
+          <button class="btn ghost mini" id="btnReroll">换一批</button>
+        </div>
+      </div>
+
+      <div class="stat" id="statBox"></div>
+    </div>
+
+    <div class="actions">
+      <div class="arow">
+        <button class="btn ghost" id="btnPrint">打印</button>
+        <button class="btn primary" id="btnPdfSheet">导出PDF试卷</button>
+        <button class="btn tint" id="btnPdfAns">导出PDF答案</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ 预览区 ============ -->
+  <main class="stage">
+    <div class="mbar" id="mbar">
+      <button class="mbtn" id="mPrint">打印</button>
+      <button class="mbtn primary" id="mPdfSheet">导出试卷</button>
+      <button class="mbtn tint" id="mPdfAns">导出答案</button>
+    </div>
+    <div class="bar">
+      <span class="dot"></span>
+      <span>共 <span class="hl" id="barPages">1</span> 页 · <span class="hl" id="barItems">100</span> 题</span>
+      <span class="sep"></span>
+      <span class="tipbar">「导出 PDF」直接下载；矢量清晰版用「打印」→ 另存为 PDF（A4 / 边距无）</span>
+    </div>
+    <div class="pages" id="pages"><div class="pstack" id="pstack"></div></div>
+    <div class="pager hide" id="pager">
+      <button class="pgbtn" data-d="-1" title="上一页">‹</button>
+      <div class="pgnums" id="pgnums"></div>
+      <button class="pgbtn" data-d="1" title="下一页">›</button>
+    </div>
+    <div class="zoomctl" id="zoomctl">
+      <span id="zoomVal">100%</span>
+    </div>
+  </main>
+</div>
+
+<!-- 章节设置弹窗 -->
+<div class="modal hide" id="secModal">
+  <div class="modal-mask" data-act="cancel"></div>
+  <div class="modal-box">
+    <div class="modal-hd" id="mdTitle">章节设置</div>
+    <div class="modal-bd">
+      <div class="mrow"><span class="rl">数值范围</span>
+        <select class="sel sm" id="mdRange">
+          <option value="5">5 以内</option>
+          <option value="10">10 以内</option>
+          <option value="20">20 以内</option>
+          <option value="50">50 以内</option>
+          <option value="100">100 以内</option>
+          <option value="custom">自定义</option>
+        </select>
+        <input class="secnum hide" id="mdNum" type="number" min="2" max="999">
+      </div>
+      <div class="mrow"><span class="rl">运算符</span><div class="chips mini" id="mdOps"></div></div>
+      <div class="mrow" id="mdRowL"><span class="rl">左边个数</span><div class="seg mini" id="mdL" data-seg="maxL"></div></div>
+      <div class="mrow" id="mdRowR"><span class="rl">右边个数</span><div class="seg mini" id="mdR" data-seg="maxR"></div></div>
+      <div class="mrow" id="mdRowT"><span class="rl">选项</span><div class="chips mini" id="mdTgs"></div></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn ghost" id="mdCancel" data-act="cancel">取消</button>
+      <button class="btn primary" id="mdOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     生成引擎（纯逻辑，无 DOM，可在 Node 中做单元测试）
+     ========================================================= -->
+<script id="engine">
+(function(){
+  'use strict';
+
+  /* ---------------- 可复现随机数 ---------------- */
+  let R = 1;
+  function setSeed(s){ R = (s >>> 0) || 1; }
+  function rand(){
+    R = (R + 0x6D2B79F5) >>> 0;
+    let t = R;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  const rnd  = n => Math.floor(rand() * n);
+  const ri   = (a, b) => a + Math.floor(rand() * (b - a + 1));
+  const pick = a => a[Math.floor(rand() * a.length)];
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=rnd(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+
+  /* ---------------- 表达式求值（含优先级，严格校验中间值） ----------------
+     规则：所有运算数与中间结果必须是非负整数且 <= limit；除法必须整除。
+     running 用来提前拦截 "5-8+10" 这类中间出现负数的式子。            */
+  function evalExpr(nums, ops, limit){
+    if(!nums.length) return null;
+    let cur = nums[0], sign = 1, running = 0;
+    if(!Number.isInteger(cur) || cur < 0 || cur > limit) return null;
+    for(let i = 0; i < ops.length; i++){
+      const op = ops[i], b = nums[i + 1];
+      if(!Number.isInteger(b) || b < 0 || b > limit) return null;
+      if(op === '+' || op === '-'){
+        running += sign * cur;
+        if(running < 0 || running > limit) return null;
+        sign = (op === '+') ? 1 : -1;
+        cur = b;
+      } else if(op === '*'){
+        cur = cur * b;
+      } else if(op === '/'){
+        if(b === 0 || cur % b !== 0) return null;
+        cur = cur / b;
+      } else return null;
+      if(!Number.isInteger(cur) || cur < 0 || cur > limit) return null;
+    }
+    running += sign * cur;
+    if(running < 0 || running > limit) return null;
+    return running;
+  }
+
+  /* ---------------- 符号求解：把一侧表达式看成 (a·x + b)/d，已知结果反解 x ---------------- */
+  function linOf(tok){
+    return tok.t === 'blank' ? {a:1, b:0, d:1} : {a:0, b:tok.v, d:1};
+  }
+  const negLin = L => ({a:-L.a, b:-L.b, d:L.d});
+  function addLin(A, B){
+    return {a:A.a*B.d + B.a*A.d, b:A.b*B.d + B.b*A.d, d:A.d*B.d};
+  }
+  function mulLin(A, B){
+    if(A.a === 0) return {a:B.a*A.b, b:B.b*A.b, d:B.d*A.d};
+    if(B.a === 0) return {a:A.a*B.b, b:A.b*B.b, d:A.d*B.d};
+    return null;                       // x 出现两次 → 非线性，拒绝
+  }
+  function divLin(A, B){
+    if(B.a !== 0 || B.b === 0) return null;   // 未知数不能当除数
+    return {a:A.a*B.d, b:A.b*B.d, d:A.d*B.b};
+  }
+  function solveLinear(toks, target){
+    let terms = [], cur = linOf(toks[0]), sign = 1;
+    for(let i = 1; i < toks.length; i += 2){
+      const op = toks[i].v, nx = linOf(toks[i + 1]);
+      if(op === '+' || op === '-'){
+        terms.push(sign === 1 ? cur : negLin(cur));
+        sign = (op === '+') ? 1 : -1;
+        cur = nx;
+      } else if(op === '*'){
+        const m = mulLin(cur, nx); if(!m) return null; cur = m;
+      } else if(op === '/'){
+        const m = divLin(cur, nx); if(!m) return null; cur = m;
+      } else return null;
+    }
+    terms.push(sign === 1 ? cur : negLin(cur));
+    let A = {a:0, b:0, d:1};
+    for(const t of terms) A = addLin(A, t);
+    if(A.a === 0) return null;
+    const num = target * A.d - A.b;
+    if(num % A.a !== 0) return null;
+    const x = num / A.a;
+    return Number.isInteger(x) ? x : null;
+  }
+
+  /* ---------------- 基础构造：生成一个具体的一侧表达式 ---------------- */
+  function divisors(n){
+    const r = [];
+    for(let i = 1; i <= n; i++) if(n % i === 0) r.push(i);
+    return r;
+  }
+
+  /* 质量评分：不硬性禁掉，只在候选中挑更好看的（避免小范围配置出不了题） */
+  function qualityScore(nums, ops){
+    let s = 100;
+    const seen = new Set();
+    for(const n of nums){ if(seen.has(n)) s -= 26; seen.add(n); }
+    for(let i = 0; i < ops.length; i++){
+      if((ops[i] === '*' || ops[i] === '/') && (nums[i] === 1 || nums[i + 1] === 1)) s -= 40; // ×1 ÷1
+    }
+    if(seen.size === 1) s -= 25;                                                              // 5+5+5
+    return s;
+  }
+
+  function buildSide(k, cfg, forced){
+    let best = null, bestScore = -1;
+    for(let t = 0; t < 70; t++){
+      const ops = [];
+      for(let i = 0; i < k - 1; i++) ops.push(forced || pick(cfg.ops));
+
+      const nums = [];
+      let cur = ri(1, cfg.N);
+      nums.push(cur);
+      let running = 0, sign = 1, ok = true;
+
+      for(let i = 0; i < ops.length; i++){
+        const op = ops[i];
+        if(op === '+' || op === '-'){
+          running += sign * cur;
+          if(running < 0 || running > cfg.N){ ok = false; break; }
+          let b;
+          if(op === '+'){
+            const room = cfg.N - running;
+            if(room < 1){ ok = false; break; }
+            b = ri(1, room);
+          } else {
+            if(running < 1){ ok = false; break; }
+            b = ri(1, running);
+          }
+          nums.push(b); cur = b; sign = (op === '+') ? 1 : -1;
+        } else if(op === '*'){
+          const room = Math.floor(cfg.N / cur);
+          if(room < 1){ ok = false; break; }
+          const b = ri(1, room);
+          nums.push(b); cur = cur * b;
+        } else {
+          const ds = divisors(cur);
+          const b = ds[rnd(ds.length)];
+          nums.push(b); cur = cur / b;
+        }
+        if(!Number.isInteger(cur) || cur < 0 || cur > cfg.N){ ok = false; break; }
+      }
+      if(!ok) continue;
+      running += sign * cur;
+      if(running < 1 || running > cfg.N) continue;      // 结果 0 的题没有训练价值
+      if(running !== evalExpr(nums, ops, cfg.N)) continue;
+
+      const sc = qualityScore(nums, ops);
+      if(sc > bestScore){ bestScore = sc; best = {nums, ops, value:running}; }
+      if(bestScore >= 100) break;
+    }
+    return best;
+  }
+
+  // 让一侧表达式的值恰好等于 target：随机定形状，留一个位置反解
+  function buildSideForValue(k, cfg, forced, target){
+    let best = null, bestScore = -1;
+    for(let t = 0; t < 420; t++){
+      const ops = [];
+      for(let i = 0; i < k - 1; i++) ops.push(forced || pick(cfg.ops));
+
+      const p = rnd(k);
+      // 位置 p 前面的运算符是 ops[p-1]；只有它才是 '/' 会让未知数变成除数
+      if(p > 0 && ops[p - 1] === '/') continue;
+
+      const toks = [];
+      for(let i = 0; i < k; i++){
+        if(i > 0) toks.push({t:'op', v:ops[i - 1]});
+        toks.push(i === p ? {t:'blank'} : {t:'num', v:ri(1, cfg.N)});
+      }
+
+      const x = solveLinear(toks, target);
+      if(x === null || x < 1 || x > cfg.N) continue;    // 答案不为 0，更符合课本习惯
+
+      const nums = [];
+      for(const tk of toks) if(tk.t !== 'op') nums.push(tk.t === 'blank' ? x : tk.v);
+      if(nums.length !== k) continue;
+      if(evalExpr(nums, ops, cfg.N) !== target) continue;
+
+      const sc = qualityScore(nums, ops);
+      if(sc > bestScore){ bestScore = sc; best = {nums, ops, blankIdx:p, x}; }
+      if(bestScore >= 100) break;
+    }
+    return best;
+  }
+
+  /* ---------------- 组装可渲染的一侧 ---------------- */
+  function mkSide(nums, ops, blanks){
+    blanks = blanks || {};
+    const numB = blanks.num || [], opB = blanks.op || [];
+    const toks = [];
+    for(let i = 0; i < nums.length; i++){
+      if(i > 0) toks.push({t:'op', v:ops[i - 1], blank: opB.indexOf(i - 1) >= 0});
+      toks.push({t:'num', v:nums[i], blank: numB.indexOf(i) >= 0});
+    }
+    return {toks};
+  }
+  const numsOf = s => s.toks.filter(t => t.t === 'num').map(t => t.v);
+  const opsOf  = s => s.toks.filter(t => t.t === 'op').map(t => t.v);
+
+  function sideKey(s){
+    return s.toks.map(t => t.blank ? (t.t === 'op' ? '?' : '_') : (t.t === 'op' ? t.v : t.v)).join('');
+  }
+  function itemKey(it){ return sideKey(it.L) + '=' + sideKey(it.R); }
+
+  /* ---------------- 形状选取（硬性规则 1） ---------------- */
+  function pickShape(cfg){
+    let kL = 1, kR = 1;
+    for(let i = 0; i < 40; i++){
+      kL = cfg.randomN ? ri(1, cfg.maxL) : cfg.maxL;
+      kR = cfg.randomN ? ri(1, cfg.maxR) : cfg.maxR;
+      if(kL === 1 && kR === 1) continue;        // 硬性规则：两侧不能都是单个数
+      return [kL, kR];
+    }
+    kL = Math.min(2, cfg.maxL);
+    kR = Math.max(2, Math.min(cfg.maxR, 3));
+    return [kL, kR];
+  }
+
+  /* ---------------- 题型 1：填运算子（基础 / 巩固） ---------------- */
+  function makeOperandBlank(cfg, kL, kR, forced){
+    for(let t = 0; t < 30; t++){
+      // 某一侧只有 1 个数时，空白固定落在这一侧（否则会得到 "5 = □+3−10" 这种颠倒式）
+      let blankLeft;
+      if(kL === 1) blankLeft = true;
+      else if(kR === 1) blankLeft = false;
+      else blankLeft = rand() < 0.5;
+      const ka = blankLeft ? kR : kL;
+      const kb = blankLeft ? kL : kR;
+
+      const anchor = buildSide(ka, cfg, forced);
+      if(!anchor) continue;
+      const bs = buildSideForValue(kb, cfg, forced, anchor.value);
+      if(!bs) continue;
+
+      const A = mkSide(anchor.nums, anchor.ops, {});
+      const B = mkSide(bs.nums, bs.ops, {num:[bs.blankIdx]});
+
+      const L = blankLeft ? B : A;
+      const R = blankLeft ? A : B;
+      // 两侧数字集合雷同（14+1+1 = 14+□+1）视为低质题
+      const setL = L.toks.filter(x => x.t === 'num').map(x => x.v).sort((a, b) => a - b).join(',');
+      const setR = R.toks.filter(x => x.t === 'num').map(x => x.v).sort((a, b) => a - b).join(',');
+      if(setL === setR) continue;
+
+      return { L, R, ans:String(bs.x), kind:'operand' };
+    }
+    return null;
+  }
+
+  /* ---------------- 题型 2：填运算符（巩固） ---------------- */
+  function makeOperatorBlank(cfg, kL, kR, forced){
+    for(let t = 0; t < 30; t++){
+      const L = buildSide(kL, cfg, forced);
+      if(!L) continue;
+      const bs = buildSideForValue(kR, cfg, forced, L.value);
+      if(!bs) continue;
+
+      const Ls = mkSide(L.nums, L.ops, {});
+      const Rs = mkSide(bs.nums, bs.ops, {});
+
+      const lv = L.value;
+      const rv = evalExpr(bs.nums, bs.ops, cfg.N);
+      if(rv === null || rv !== lv) continue;
+
+      const slots = [];
+      for(let i = 0; i < L.ops.length; i++) slots.push({s:'L', i});
+      for(let i = 0; i < bs.ops.length; i++) slots.push({s:'R', i});
+      if(!slots.length) continue;
+      shuffle(slots);
+
+      for(const slot of slots){
+        const isL = slot.s === 'L';
+        const nums = isL ? L.nums : bs.nums;
+        const ops  = isL ? L.ops  : bs.ops;
+        const other = isL ? rv : lv;
+
+        let cnt = 0, answer = null;
+        for(const op of cfg.ops){
+          const tryOps = ops.slice();
+          tryOps[slot.i] = op;
+          const v = evalExpr(nums, tryOps, cfg.N);
+          if(v !== null && v === other){ cnt++; answer = op; }
+        }
+        if(cnt !== 1) continue;              // 必须唯一可解
+
+        const newSide = mkSide(nums, ops, {op:[slot.i]});
+        const A = isL ? newSide : Ls;
+        const B = isL ? Rs : newSide;
+        return { L:A, R:B, ans:answer, kind:'operator' };
+      }
+    }
+    return null;
+  }
+
+  /* ---------------- 题型 3：开放创造（创造） ---------------- */
+  function makeCreate(cfg, kL, kR, forced){
+    if(kL === 1 && kR === 1) kR = 2;                    // 只剩"□ = □"这种没意义的形态才兜底
+    for(let t = 0; t < 30; t++){
+      const L = buildSide(kL, cfg, forced);
+      if(!L) continue;
+      const bs = buildSideForValue(kR, cfg, forced, L.value);
+      if(!bs) continue;
+      const rv = evalExpr(bs.nums, bs.ops, cfg.N);
+      if(rv === null || rv !== L.value) continue;
+
+      // 候选槽位：左侧第一个数必须保留，保证有"锚点"
+      const numSlots = [], opSlots = [];
+      for(let i = 1; i < L.nums.length; i++) numSlots.push({s:'L', i});
+      for(let i = 0; i < bs.nums.length; i++) numSlots.push({s:'R', i});
+      for(let i = 0; i < L.ops.length; i++) opSlots.push({s:'L', i});
+      for(let i = 0; i < bs.ops.length; i++) opSlots.push({s:'R', i});
+
+      shuffle(numSlots);
+      shuffle(opSlots);
+
+      const want = 2 + rnd(3);                        // 2~4 个空
+      let nOp = (cfg.opBlank && opSlots.length) ? rnd(3) : 0;   // 0~2 个运算符空
+      let nNum = Math.max(1, want - nOp);
+      if(nNum > numSlots.length) nNum = numSlots.length;
+      if(nOp > opSlots.length) nOp = opSlots.length;
+      if(nNum + nOp < 2) nNum = Math.min(numSlots.length, 2);
+
+      const numPick = numSlots.slice(0, nNum);
+      const opPick  = opSlots.slice(0, nOp);
+
+      const lNum = numPick.filter(p => p.s === 'L').map(p => p.i);
+      const rNum = numPick.filter(p => p.s === 'R').map(p => p.i);
+      const lOp  = opPick.filter(p => p.s === 'L').map(p => p.i);
+      const rOp  = opPick.filter(p => p.s === 'R').map(p => p.i);
+
+      return {
+        L: mkSide(L.nums, L.ops, {num:lNum, op:lOp}),
+        R: mkSide(bs.nums, bs.ops, {num:rNum, op:rOp}),
+        ans: '开放',
+        kind: 'create'
+      };
+    }
+    return null;
+  }
+
+  /* ---------------- 题型 4：比较大小（比较练习） ---------------- */
+  // 两侧都是完整的具体式子，学生只在虚线圆圈里填 ＞ / ＜ / ＝
+  function makeCompareItem(cfg, wantSign){
+    for(let t = 0; t < 30; t++){
+      const shape = pickShape(cfg);
+      const kL = shape[0], kR = shape[1];
+      const forced = cfg.mixed ? null : pick(cfg.ops);
+
+      const left = buildSide(kL, cfg, forced);
+      if(!left) continue;
+
+      // 目标关系可由外部指定（保证三种符号都出现），否则随机
+      const want = wantSign || pick(['>', '<', '=']);
+      let right = null;
+      if(want === '='){
+        const bs = buildSideForValue(kR, cfg, forced, left.value);
+        if(bs) right = {nums:bs.nums, ops:bs.ops, value:left.value};
+      } else {
+        for(let k = 0; k < 20; k++){
+          const r = buildSide(kR, cfg, forced);
+          if(!r) continue;
+          const rel = left.value > r.value ? '>' : (left.value < r.value ? '<' : '=');
+          if(rel === want){ right = r; break; }
+        }
+        if(!right) continue;           // 凑不出指定关系就整题重来，不降级
+      }
+      if(!right) continue;
+
+      // 两边完全一样（5+3 ○ 5+3）太容易
+      const sigL = left.nums.join(',') + '|' + left.ops.join('');
+      const sigR = right.nums.join(',') + '|' + right.ops.join('');
+      if(sigL === sigR) continue;
+
+      const ans = left.value > right.value ? '>' : (left.value < right.value ? '<' : '=');
+      return {
+        L: mkSide(left.nums, left.ops, {}),
+        R: mkSide(right.nums, right.ops, {}),
+        ans, kind:'compare'
+      };
+    }
+    return null;
+  }
+
+  /* ---------------- 题型 5：拓展（比较题 + 开放题 混合） ---------------- */
+  function makeExtensionItem(cfg, idx){
+    if(cfg.compare === false){
+      const shape = pickShape(cfg);
+      return makeCreate(cfg, shape[0], shape[1], cfg.mixed ? null : pick(cfg.ops));
+    }
+    // 对比关系填空打开时，节内两类交替：
+    //   偶数题 → 圆圈留空，学生填 ＞ ＜ ＝
+    //   奇数题 → 符号先印好（＞ ＜ ＝ 轮换），学生自由填数
+    const isCompare = idx % 2 === 0;
+    const sign = ['>', '<', '='][Math.floor(idx / 2) % 3];
+
+    if(isCompare) return makeCompareItem(cfg, sign);
+
+    // 已印符号的题只挖"数字空"，让学生自由填数（运算符空留给"巩固"，这里不掺）
+    const freeCfg = Object.assign({}, cfg, { opBlank: false });
+    const shape = pickShape(freeCfg);
+    const it = makeCreate(freeCfg, shape[0], shape[1], freeCfg.mixed ? null : pick(freeCfg.ops));
+    if(it) it.mid = sign;
+    return it;
+  }
+
+  /* ---------------- 兜底题：必须遵守当前运算符设置 ---------------- */
+  function fallbackItem(cfg){
+    const op = (cfg.ops && cfg.ops[0]) || '+';
+    const N = Math.max(2, cfg.N);
+    for(let t = 0; t < 80; t++){
+      let a, b, v;
+      if(op === '+'){ a = ri(1, N); b = ri(1, N); v = a + b; }
+      else if(op === '-'){ a = ri(2, N); b = ri(1, a - 1); v = a - b; }
+      else if(op === '*'){ a = ri(2, N); b = ri(2, Math.max(2, Math.floor(N / a))); v = a * b; }
+      else { b = ri(2, N); a = b * ri(1, Math.max(1, Math.floor(N / b))); v = a / b; }
+      if(!(v >= 1 && v <= N && a >= 1 && a <= N && b >= 1 && b <= N)) continue;
+      const it = { L: mkSide([a, b], [op], {}), R: mkSide([v], [], {num:[0]}), ans:String(v), kind:'operand' };
+      it.key = itemKey(it);
+      return it;
+    }
+    const it = { L: mkSide([1, 1], ['+'], {}), R: mkSide([2], [], {num:[0]}), ans:'2', kind:'operand' };
+    it.key = itemKey(it);
+    return it;
+  }
+
+  function fallbackCompare(cfg){
+    const N = Math.max(2, cfg.N);
+    const a = ri(1, N), b = ri(1, Math.max(1, N - a));
+    const c = ri(1, N);
+    const ans = (a + b) > c ? '>' : ((a + b) < c ? '<' : '=');
+    const it = { L: mkSide([a, b], ['+'], {}), R: mkSide([c], [], {}), ans, kind:'compare' };
+    it.key = itemKey(it);
+    return it;
+  }
+
+  /* ---------------- 单题入口 ---------------- */
+  function makeItem(kind, cfg, used, idx){
+    let last = null;
+    for(let t = 0; t < 26; t++){
+      let it = null;
+      if(kind === 'extend'){
+        it = makeExtensionItem(cfg, idx);
+      } else {
+        const shape = pickShape(cfg);
+        const kL = shape[0], kR = shape[1];
+        const forced = cfg.mixed ? null : pick(cfg.ops);
+
+        if(kind === 'basic'){
+          it = makeOperandBlank(cfg, kL, kR, forced);
+        } else if(kind === 'solid'){
+          if(cfg.opBlank && rand() < 0.42) it = makeOperatorBlank(cfg, kL, kR, forced);
+          else it = makeOperandBlank(cfg, kL, kR, forced);
+        } else {
+          it = makeCreate(cfg, kL, kR, forced);
+        }
+      }
+      if(!it) continue;
+
+      it.key = itemKey(it);
+      if(used && used.has(it.key)){ last = it; continue; }
+      if(used) used.add(it.key);
+      return it;
+    }
+    // 组合已经用尽（如 20 以内只做除法）：允许重复，但题型与运算符仍然正确
+    if(last) return last;
+    return fallbackItem(cfg);
+  }
+
+  /* 基础节组合池：枚举「a ± b = ( )」的所有合法组合，用种子洗牌后按顺序取。
+     多张卷把组合用满时也不会重复（纯随机抽样在接近满仓时必然撞车）。 */
+  function shuffleArr(a){
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(rand() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function buildBasicPool(cfg){
+    const good = [], meh = [];
+    for(const op of cfg.ops){
+      for(let a = 1; a <= cfg.N; a++){
+        for(let b = 1; b <= cfg.N; b++){
+          const v = evalExpr([a, b], [op], cfg.N);
+          if(v === null) continue;
+          const it = { L: mkSide([a, b], [op], {}), R: mkSide([v], [], { num:[0] }), ans: String(v), kind:'operand' };
+          it.key = itemKey(it);
+          (a === b ? meh : good).push(it);     // 同数相加排后面，观感更好
+        }
+      }
+    }
+    return shuffleArr(good).concat(shuffleArr(meh));
+  }
+
+  /* ---------------- 整卷生成 ---------------- */
+  const SECTIONS = [
+    {key:'basic',  name:'基础练习'},
+    {key:'solid',  name:'巩固练习'},
+    {key:'extend', name:'拓展练习'}
+  ];
+  const ORDER = SECTIONS.map(x => x.key);
+
+  const MAX_PAGES = 5;       // 一次最多生成 5 张
+  const MAX_ITEMS = 100;     // 每张最多 100 题（字号随题量自动让位）
+
+  // 形态被锁死的章节：这些值不接受外部配置，一律以这里为准
+  const LOCKED_SHAPE = {
+    basic: { maxL:2, maxR:1, randomN:false, mixed:false, opBlank:false },  // 左2右1，纯计算
+    solid: { maxL:3, maxR:1, randomN:false, mixed:true,  opBlank:true  }   // 左3右1，混合运算符 + 可挖运算符
+  };
+
+  function makeWorksheet(cfg){
+    cfg = Object.assign({ N:20, pages:1, seed:1, sections:[] }, cfg);
+    if(!(cfg.N >= 2)) cfg.N = 2;
+    setSeed(cfg.seed);
+
+    const pageCount = Math.max(1, Math.min(MAX_PAGES, cfg.pages | 0 || 1));
+    const used = new Set();
+    const poolCache = {};      // 组合池（整份卷共用）
+    const poolCursor = { basic: 0 };   // 池读取游标：跨页累加，保证不回头
+    const out = [];
+
+    // 只生成"启用且数量 > 0"的章节，并按固定顺序排列
+    const enabled = (cfg.sections || [])
+      .filter(x => x && x.on !== false && (x.count | 0) > 0)
+      .slice()
+      .sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+
+    for(let p = 0; p < pageCount; p++){
+      const sections = [];
+      let no = 1;
+      for(const sec of enabled){
+        const sc = {
+          N: Math.max(2, Math.min(999, (sec.N | 0) || cfg.N || 20)),
+          ops: (sec.ops && sec.ops.length) ? sec.ops.slice() : ['+','-'],
+          maxL: Math.max(1, Math.min(3, sec.maxL | 0 || 2)),
+          maxR: Math.max(1, Math.min(3, sec.maxR | 0 || 2)),
+          randomN: sec.randomN !== false,
+          mixed: sec.mixed !== false,
+          opBlank: sec.opBlank !== false,
+          compare: sec.compare !== false
+        };
+        const lock = LOCKED_SHAPE[sec.key];
+        if(lock) Object.keys(lock).forEach(k => { sc[k] = lock[k]; });
+        if(sc.maxL === 1 && sc.maxR === 1) sc.maxR = 2;   // 两侧都是单个数无法成题
+
+        const meta = SECTIONS.find(x => x.key === sec.key) || { key: sec.key, name: sec.key };
+        const n = Math.min(MAX_ITEMS, sec.count | 0);
+        const items = [];
+        let pool = null;
+        // 组合数不大时才建池（大范围用随机+去重就够了，建池太占内存）
+        if(sec.key === 'basic' && sc.ops.length * sc.N * sc.N <= 3000){
+          if(!poolCache.basic) poolCache.basic = buildBasicPool(sc);
+          pool = poolCache.basic;
+        }
+        for(let i = 0; i < n; i++){
+          let it;
+          if(pool && poolCursor.basic < pool.length){
+            it = Object.assign({}, pool[poolCursor.basic++]);   // 浅拷贝，避免改动池中共享对象
+          } else {
+            it = makeItem(sec.key, sc, used, i);                // i 用于拓展节交替两种题型
+          }
+          it.no = no++;
+          items.push(it);
+        }
+        sections.push({ key: sec.key, name: meta.name, opBlank: sc.opBlank, compare: sc.compare !== false, range: sc.N, items });
+      }
+      out.push({ sections });
+    }
+    return out;
+  }
+
+  const Engine = {
+    makeWorksheet, makeItem, makeCompareItem, makeExtensionItem, evalExpr, solveLinear,
+    mkSide, mkSideKey: sideKey, itemKey, setSeed, rand, ri, pick,
+    SECTIONS, ORDER, MAX_PAGES, MAX_ITEMS, LOCKED_SHAPE
+  };
+
+  if(typeof globalThis !== 'undefined') globalThis.Engine = Engine;
+})();
+</script>
+
+<!-- =========================================================
+     界面 & 渲染
+     ========================================================= -->
+<div class="sheet-mask" id="mask"></div>
+<button class="fab" id="fab" aria-label="设置">设置</button>
+<div class="edge-tip" id="edgeTip"></div>
+<div class="pagetip" id="pageTip"></div>
+<script id="app">
+(function(){
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const SYM = {'+':'+', '-':'−', '*':'×', '/':'÷'};
+
+  const SECTION_DEFS = [
+    {key:'basic',  name:'基础练习', count:76, N:20, ops:['+','-'], maxL:2, maxR:1, randomN:false, mixed:false, opBlank:false, compare:false},
+    {key:'solid',  name:'巩固练习', count:18, N:20, ops:['+','-'], maxL:3, maxR:1, randomN:false, mixed:true,  opBlank:true,  compare:false},
+    {key:'extend', name:'拓展练习', count:6, N:20, ops:['+','-'], maxL:3, maxR:3, randomN:true,  mixed:true,  opBlank:true,  compare:true}
+  ];
+
+  const CLASS_NAME = '冒险岛班';
+
+  function todayText(){
+    const d = new Date();
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  const state = {
+    pages: 1, date: todayText(),
+    sections: SECTION_DEFS.map(d => Object.assign({ on:true, open:false }, d)),
+    title:'', showAns:false, seed: 20261111, pageIdx: 0, zoom: 1
+  };
+
+  const inpPages = $('#inpPages'), inpTitle = $('#inpTitle'),
+        inpSeed = $('#inpSeed'), statBox = $('#statBox'), secList = $('#secList'),
+        pstackEl = $('#pstack'), pagerEl = $('#pager'), pgnumsEl = $('#pgnums');
+
+  function bindToggle(el, key, onChange){
+    el.addEventListener('click', () => {
+      const on = !el.classList.contains('on');
+      el.classList.toggle('on', on);
+      state[key] = on;
+      if(onChange) onChange();
+    });
+  }
+
+  /* ---------------- 章节卡片 ---------------- */
+  const OP_LABEL = {'+':'＋','-':'－','*':'×','/':'÷'};
+  const RANGE_PRESETS = ['5','10','20','50','100'];
+
+  function opsLabel(ops){
+    return ops.map(o => OP_LABEL[o]).join('');
+  }
+
+  function secSummary(s){
+    const lk = Engine.LOCKED_SHAPE[s.key];
+    if(lk) return [s.N + '以内', opsLabel(s.ops), '固定 左' + lk.maxL + '右' + lk.maxR].join(' · ');
+    const bits = [s.N + '以内', opsLabel(s.ops), '左' + s.maxL + '右' + s.maxR];
+    bits.push(s.randomN ? '随机个数' : '固定个数');
+    bits.push(s.mixed ? '运算符混合' : '单一运算符');
+    if(s.compare) bits.push('对比关系填空');
+    else if(s.opBlank) bits.push('运算符可空');
+    return bits.join(' · ');
+  }
+
+  function secCardHTML(s){
+    return '<div class="seccard' + (s.on ? '' : ' off') + '" data-key="' + s.key + '">'
+      + '<div class="sechd">'
+      +   '<button class="sw2' + (s.on ? ' on' : '') + '" data-act="on"></button>'
+      +   '<div class="sechd-main"><div class="secname">' + s.name + '</div></div>'
+      +   '<div class="stepper">'
+      +     '<button class="stp" data-act="dec"' + (s.count <= 0 ? ' disabled' : '') + ' title="减少 1 题（按住 Shift 减 5）">−</button>'
+      +     '<input class="seccount" type="number" min="0" max="100" value="' + s.count + '">'
+      +     '<button class="stp" data-act="inc" title="增加 1 题（按住 Shift 加 5）">+</button>'
+      +   '</div>'
+      +   '<span class="unit">题</span>'
+      +   '<button class="secedit" data-act="edit">修改</button>'
+      + '</div>'
+      + '<div class="secsum">' + secSummary(s) + '</div>'
+      + '</div>';
+  }
+
+  function buildSecList(){
+    secList.innerHTML = state.sections.map(secCardHTML).join('');
+    updateBudget();
+  }
+
+  /* ---------------- 章节设置弹窗 ---------------- */
+  let mDraft = null, mKey = null;
+
+  function openSectionDialog(key){
+    const sec = state.sections.find(x => x.key === key);
+    if(!sec) return;
+    mKey = key;
+    mDraft = JSON.parse(JSON.stringify(sec));
+    $('#mdTitle').textContent = sec.name + ' · 设置';
+    renderModal();
+    $('#secModal').classList.remove('hide');
+  }
+
+  function closeSectionDialog(){ $('#secModal').classList.add('hide'); mDraft = null; mKey = null; }
+
+  function renderModal(){
+    const d = mDraft; if(!d) return;
+
+    const sel = $('#mdRange'), num = $('#mdNum');
+    sel.value = RANGE_PRESETS.indexOf(String(d.N)) >= 0 ? String(d.N) : 'custom';
+    num.value = d.N;
+    num.classList.toggle('hide', sel.value !== 'custom');
+
+    $('#mdOps').innerHTML = ['+','-','*','/'].map(o =>
+      '<button class="chip' + (d.ops.indexOf(o) >= 0 ? ' on' : '') + '" data-op="' + o + '">' + OP_LABEL[o] + '</button>').join('');
+
+    const segHTML = v => [1,2,3].map(x =>
+      '<button data-v="' + x + '"' + (v === x ? ' class="on"' : '') + '>' + x + '</button>').join('');
+    $('#mdL').innerHTML = segHTML(d.maxL);
+    $('#mdR').innerHTML = segHTML(d.maxR);
+
+    renderModalToggles();
+
+    // 形态锁死的章节只保留数值范围与运算符
+    const fixed = !!Engine.LOCKED_SHAPE[d.key];
+    $('#mdRowL').classList.toggle('hide', fixed);
+    $('#mdRowR').classList.toggle('hide', fixed);
+    $('#mdRowT').classList.toggle('hide', fixed);
+  }
+
+  function renderModalToggles(){
+    const d = mDraft; if(!d) return;
+    // 比较题里没有运算符空位，勾了"对比关系填空"就把该选项收起来
+    const list = [['randomN','个数随机'],['mixed','混合运算符']];
+    if(!d.compare) list.push(['opBlank','运算符填空']);
+    list.push(['compare','对比关系填空']);
+    $('#mdTgs').innerHTML = list.map(t =>
+      '<button class="chip' + (d[t[0]] ? ' on' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>').join('');
+  }
+
+  $('#secModal').addEventListener('click', e => {
+    if(!mDraft) return;
+    if(e.target.dataset.act === 'cancel' || e.target.id === 'mdCancel'){ closeSectionDialog(); return; }
+    if(e.target.id === 'mdOk'){
+      const sec = state.sections.find(x => x.key === mKey);
+      if(sec){
+        const keys = Engine.LOCKED_SHAPE[mKey] ? ['N'] : ['N','maxL','maxR','randomN','mixed','opBlank','compare'];
+        keys.forEach(k => { sec[k] = mDraft[k]; });
+        sec.ops = mDraft.ops.slice();
+      }
+      closeSectionDialog();
+      buildSecList();     // 刷新卡片摘要
+      render();
+      return;
+    }
+    const btn = e.target.closest('button'); if(!btn) return;
+
+    if(btn.dataset.op){
+      const i = mDraft.ops.indexOf(btn.dataset.op);
+      if(i >= 0){ if(mDraft.ops.length > 1) mDraft.ops.splice(i, 1); }
+      else mDraft.ops.push(btn.dataset.op);
+      btn.classList.toggle('on', mDraft.ops.indexOf(btn.dataset.op) >= 0);
+      return;
+    }
+    if(btn.dataset.v){
+      const seg = btn.closest('[data-seg]');
+      if(seg){
+        mDraft[seg.dataset.seg] = +btn.dataset.v;
+        seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+      }
+      return;
+    }
+    if(btn.dataset.t){
+      const k = btn.dataset.t;
+      mDraft[k] = !mDraft[k];
+      if(k === 'compare'){ renderModalToggles(); }      // 会改变可选项数量
+      else btn.classList.toggle('on', mDraft[k]);
+      return;
+    }
+  });
+
+  $('#mdRange').addEventListener('change', e => {
+    if(!mDraft) return;
+    const num = $('#mdNum');
+    if(e.target.value === 'custom'){
+      num.classList.remove('hide');
+      mDraft.N = Math.max(2, Math.min(999, parseInt(num.value) || 30));
+      num.focus(); num.select();
+    } else {
+      mDraft.N = +e.target.value;
+      num.value = mDraft.N;
+      num.classList.add('hide');
+    }
+  });
+  $('#mdNum').addEventListener('input', e => {
+    if(!mDraft) return;
+    mDraft.N = Math.max(2, Math.min(999, parseInt(e.target.value) || 2));
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && mDraft) closeSectionDialog();
+  });
+
+  function updateBudget(){
+    const total = state.sections.filter(x => x.on).reduce((a,x) => a + x.count, 0);
+    const el = $('#budgetNote');
+    el.textContent = '合计 ' + total + ' / 100 题';
+    el.style.color = total > 100 ? '#b45309' : '';
+  }
+
+  // 保证"启用章节的题量合计 ≤ 100"：优先保住正在编辑的章节，
+  // 超出部分从其它章节（数量大的先削）自动挪走，而不是把输入值弹回去
+  function rebalanceBudget(key){
+    const secs = state.sections.filter(x => x.on);
+    const total = secs.reduce((a,x) => a + x.count, 0);
+    if(total <= 100){ return; }
+    let over = total - 100;
+    const others = secs.filter(x => x.key !== key).sort((a,b) => b.count - a.count);
+    for(const o of others){
+      if(over <= 0) break;
+      const cut = Math.min(o.count, over);
+      o.count -= cut; over -= cut;
+    }
+    if(over > 0){
+      const me = secs.find(x => x.key === key);
+      if(me) me.count = Math.max(0, me.count - over);
+    }
+    syncCountInputs();
+  }
+
+  function syncCountInputs(){
+    document.querySelectorAll('.seccard').forEach(card => {
+      const sec = state.sections.find(x => x.key === card.dataset.key);
+      const el = card.querySelector('.seccount');
+      if(sec && el && document.activeElement !== el) el.value = sec.count;
+      const dec = card.querySelector('.stp[data-act="dec"]');
+      if(sec && dec) dec.disabled = sec.count <= 0;
+    });
+  }
+
+  secList.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if(!btn) return;
+    const card = e.target.closest('.seccard'); if(!card) return;
+    const s = state.sections.find(x => x.key === card.dataset.key); if(!s) return;
+
+    if(btn.dataset.act === 'on'){
+      s.on = !s.on;
+      btn.classList.toggle('on', s.on);
+      card.classList.toggle('off', !s.on);
+      if(s.on) rebalanceBudget(s.key);
+      updateBudget(); render(); return;
+    }
+    if(btn.dataset.act === 'edit'){
+      openSectionDialog(s.key);
+      return;
+    }
+    if(btn.dataset.act === 'inc' || btn.dataset.act === 'dec'){
+      const step = (e.shiftKey ? 5 : 1) * (btn.dataset.act === 'inc' ? 1 : -1);
+      s.count = Math.max(0, Math.min(100, s.count + step));
+      if(step > 0) rebalanceBudget(s.key);
+      syncCountInputs();
+      updateBudget();
+      render();
+      return;
+    }
+  });
+
+  secList.addEventListener('input', e => {
+    if(e.target.classList.contains('secnum')){
+      const card = e.target.closest('.seccard');
+      const sec = state.sections.find(x => x.key === card.dataset.key);
+      if(sec){
+        sec.N = Math.max(2, Math.min(999, parseInt(e.target.value) || 2));
+        render();
+      }
+      return;
+    }
+    if(!e.target.classList.contains('seccount')) return;
+    const card = e.target.closest('.seccard');
+    const s = state.sections.find(x => x.key === card.dataset.key);
+    const raw = parseInt(e.target.value, 10);
+    s.count = Math.max(0, Math.min(100, raw || 0));
+    // 输入越界（负数/超 100）时把框里的值纠正回来，避免"显示 -5 实际 0"
+    if(!isNaN(raw) && (raw < 0 || raw > 100)) e.target.value = s.count;
+    rebalanceBudget(s.key);
+    updateBudget();
+    render();
+    syncCountInputs();          // 刷新「−」的禁用态
+  });
+
+  /* ---------------- 每节数值范围（卡片内） ---------------- */
+  secList.addEventListener('change', e => {
+    const sel = e.target.closest('.secrange'); if(!sel) return;
+    const card = sel.closest('.seccard');
+    const sec = state.sections.find(x => x.key === card.dataset.key); if(!sec) return;
+    const num = card.querySelector('.secnum');
+    if(sel.value === 'custom'){
+      num.classList.remove('hide');
+      sec.N = Math.max(2, Math.min(999, parseInt(num.value) || 30));
+      num.focus(); num.select();
+    } else {
+      sec.N = +sel.value;
+      num.value = sec.N;
+      num.classList.add('hide');
+    }
+    render();
+  });
+
+  /* ---------------- 其它控件 ---------------- */
+  bindToggle($('#tgAns'),  'showAns', render);
+
+  function setPages(n){
+    state.pages = Math.max(1, Math.min(5, n || 1));
+    inpPages.value = state.pages;
+    syncPageStepper();
+    render();
+  }
+
+  function syncPageStepper(){
+    const wrap = $('#pageStepper'); if(!wrap) return;
+    const dec = wrap.querySelector('[data-p="-1"]'), inc = wrap.querySelector('[data-p="1"]');
+    if(dec) dec.disabled = state.pages <= 1;
+    if(inc) inc.disabled = state.pages >= 5;
+  }
+  $('#pageStepper').addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    setPages(state.pages + (+b.dataset.p));
+  });
+  inpPages.addEventListener('input', () => {
+    const v = parseInt(inpPages.value);
+    if(!isNaN(v)) setPages(v);
+  });
+  inpPages.addEventListener('blur', () => { inpPages.value = state.pages; });
+  inpTitle.addEventListener('input', () => { state.title = inpTitle.value.trim(); render(); });
+  const inpDate = $('#inpDate');
+  if(inpDate) inpDate.addEventListener('input', () => { state.date = inpDate.value.trim(); render(); });
+  inpSeed.addEventListener('input', () => {
+    state.seed = (parseInt(inpSeed.value) || 1) >>> 0;
+    render();
+  });
+
+  $('#btnReroll').addEventListener('click', () => {
+    state.seed = (Math.floor(Math.random() * 1e9)) >>> 0;
+    inpSeed.value = state.seed;
+    render();
+  });
+  $('#btnPrint').addEventListener('click', () => {
+    const old = document.title;
+    document.title = (state.title || autoTitle()) + '';
+    window.print();
+    setTimeout(() => { document.title = old; }, 800);
+  });
+  $('#btnPdfSheet').addEventListener('click', () => exportPDF(false));
+  $('#btnPdfAns').addEventListener('click', () => exportPDF(true));
+
+  /* ================= 直接导出 PDF（不走打印对话框） =================
+     思路：把每张 A4 用 SVG foreignObject 交给浏览器自己排版渲染 → 画到 300dpi 画布
+           → 编码为 JPEG → 用最小 PDF 结构（每页一个图片 XObject）封装 → 触发下载。 */
+  const PDF_SCALE = 3.125;          // 96dpi × 3.125 = 300dpi
+
+  async function pageToJpeg(el, scale){
+    // 用渲染时记录的自然尺寸：手机端预览会整体缩放，rect/offsetWidth 都会带上系数
+    const w = Math.round(+el.dataset.w || el.offsetWidth);
+    const h = Math.round(+el.dataset.h || el.offsetHeight);
+    const css = [...document.querySelectorAll('style')].map(n => n.textContent).join('\n');
+    const clone = el.cloneNode(true);
+    clone.classList.remove('off-page');
+    clone.style.margin = '0';
+    clone.style.boxShadow = 'none';
+    const html = '<div xmlns="http://www.w3.org/1999/xhtml" style="margin:0;padding:0;background:#fff;width:' + w + 'px;height:' + h + 'px">'
+      + '<style>' + css + '</style>' + clone.outerHTML + '</div>';
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(w * scale) + '" height="' + Math.round(h * scale) +
+      '" viewBox="0 0 ' + w + ' ' + h + '"><foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + html + '</foreignObject></svg>';
+
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    if(img.decode) await img.decode();
+    else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(w * scale);
+    cv.height = Math.round(h * scale);
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+
+    // 保底：抽查标题区域，若整片纯白说明该浏览器不渲染 foreignObject（如 Firefox）
+    const strip = ctx.getImageData(0, 0, cv.width, Math.min(300, cv.height)).data;
+    let ink = 0;
+    for(let i = 0; i < strip.length; i += 4 * 97){
+      if(strip[i] < 240 || strip[i+1] < 240 || strip[i+2] < 240){ ink++; if(ink > 20) break; }
+    }
+    if(ink <= 20) throw new Error('当前浏览器未能渲染页面（建议用 Chrome / Edge 打开本文件）');
+
+    const b64 = cv.toDataURL('image/jpeg', 0.86).split(',')[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    cv.width = cv.height = 0;             // 及时释放画布内存
+    return { bytes, w: Math.round(w * scale), h: Math.round(h * scale) };
+  }
+
+  function buildPDF(pages){
+    const enc = new TextEncoder();
+    const parts = [];
+    let len = 0;
+    const put = d => { const b = (typeof d === 'string') ? enc.encode(d) : d; parts.push(b); len += b.length; };
+    const N = pages.length;
+    const PW = 595.28, PH = 841.89;       // A4 pt
+    const offs = new Array(N * 3 + 3).fill(0);
+
+    put('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+
+    offs[1] = len;
+    put('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+    const kids = [];
+    for(let i = 0; i < N; i++) kids.push((3 + i * 3) + ' 0 R');
+    offs[2] = len;
+    put('2 0 obj\n<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + N + ' >>\nendobj\n');
+
+    for(let i = 0; i < N; i++){
+      const pgObj = 3 + i * 3, cntObj = 4 + i * 3, imgObj = 5 + i * 3;
+      const p = pages[i];
+
+      offs[pgObj] = len;
+      put(pgObj + ' 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH +
+          '] /Resources << /XObject << /Im0 ' + imgObj + ' 0 R >> >> /Contents ' + cntObj + ' 0 R >>\nendobj\n');
+
+      const content = 'q ' + PW + ' 0 0 ' + PH + ' 0 0 cm /Im0 Do Q\n';
+      offs[cntObj] = len;
+      put(cntObj + ' 0 obj\n<< /Length ' + enc.encode(content).length + ' >>\nstream\n' + content + 'endstream\nendobj\n');
+
+      offs[imgObj] = len;
+      put(imgObj + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + p.w + ' /Height ' + p.h +
+          ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + p.bytes.length +
+          ' >>\nstream\n');
+      put(p.bytes);
+      put('\nendstream\nendobj\n');
+    }
+
+    const xref = len;
+    const total = N * 3 + 3;
+    put('xref\n0 ' + total + '\n0000000000 65535 f \n');
+    for(let n = 1; n < total; n++) put(String(offs[n]).padStart(10, '0') + ' 00000 n \n');
+    put('trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+
+    return new Blob(parts, { type:'application/pdf' });
+  }
+
+  async function exportPDF(withAns, btnEl){
+    const btn = btnEl || (withAns ? $('#btnPdfAns') : $('#btnPdfSheet'));
+    if(!btn || btn.disabled) return;
+    const label = btn.textContent;
+    btn.disabled = true;
+    const prevAns = state.showAns;
+    let emptyCase = false;
+    try{
+      if(state.showAns !== withAns){ state.showAns = withAns; render(); }
+      const nodes = [...pagesEl.querySelectorAll('.page')];
+      if(!nodes.length){
+        emptyCase = true;
+        throw new Error('还没有题目：请先在左侧启用章节，并把题量设到 1 以上');
+      }
+      const pages = [];
+      for(let i = 0; i < nodes.length; i++){
+        btn.textContent = '生成中 ' + (i + 1) + '/' + nodes.length;
+        await new Promise(r => setTimeout(r, 20));
+        pages.push(await pageToJpeg(nodes[i], PDF_SCALE));
+      }
+      btn.textContent = '写入文件…';
+      await new Promise(r => setTimeout(r, 20));
+      const blob = buildPDF(pages);
+      const base = (state.title || autoTitle()).replace(/[\\/:*?"<>|]/g, '_');
+      const name = base + (withAns ? '_答案' : '') + '_种子' + state.seed + '_' + pages.length + '页.pdf';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+    }catch(err){
+      alert('导出失败：' + (err && err.message ? err.message : err) +
+        (emptyCase ? '' : '\n\n可以改用「打印」→ 另存为 PDF（矢量、更清晰）。'));
+    }finally{
+      btn.disabled = false;
+      btn.textContent = label;
+      if(state.showAns !== prevAns){ state.showAns = prevAns; render(); }
+    }
+  }
+
+  /* ---------------- 标题 ---------------- */
+  function maxRange(){
+    const ns = state.sections.filter(x => x.on && x.count > 0).map(x => x.N);
+    return ns.length ? Math.max.apply(null, ns) : 20;
+  }
+  function rangeDigits(){ return Math.max(1, String(Math.max(2, maxRange())).length); }
+
+  function activeOps(){
+    const set = new Set();
+    state.sections.filter(x => x.on && x.count > 0).forEach(x => x.ops.forEach(o => set.add(o)));
+    if(!set.size) set.add('+');
+    return set;
+  }
+
+  function autoTitle(){
+    const ops = activeOps();
+    const has = o => ops.has(o);
+    let label;
+    if(ops.size === 2 && has('+') && has('-')) label = '加减法';
+    else if(ops.size === 2 && has('*') && has('/')) label = '乘除法';
+    else if(ops.size === 4) label = '四则混合运算';
+    else label = [...ops].map(o => ({'+':'加法','-':'减法','*':'乘法','/':'除法'}[o])).join('、');
+    return maxRange() + ' 以内 ' + label + ' · 综合练习';
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  const pagesEl = $('#pages');
+
+  function sideHTML(side, fill){
+    return side.toks.map(t => {
+      if(t.blank){
+        const cls = 'blk' + (t.t === 'op' ? ' op' : '');
+        if(!fill) return '<i class="' + cls + '"></i>';
+        return '<i class="' + cls + ' filled"><b>' + (t.t === 'op' ? SYM[t.v] : t.v) + '</b></i>';
+      }
+      if(t.t === 'op') return '<span class="op">' + SYM[t.v] + '</span>';
+      return '<span class="num">' + t.v + '</span>';
+    }).join('');
+  }
+
+  function itemHTML(it, fill){
+    const mid = it.kind === 'compare'
+      ? (fill
+          ? '<i class="blk cmp filled"><b class="' + (it.ans === '>' ? 'gt' : it.ans === '<' ? 'lt' : '') + '">' + it.ans + '</b></i>'
+          : '<i class="blk cmp"></i>')
+      : '<span class="eql">' + (it.mid || '=') + '</span>';
+    return '<div class="q">'
+         + '<span class="eq"><span class="side lhs">' + sideHTML(it.L, fill) + '</span>'
+         + mid + '<span class="side rhs">' + sideHTML(it.R, fill) + '</span></span></div>';
+  }
+
+  function tipOf(sec){
+    if(sec.key === 'basic') return '在括号里填上合适的数';
+    if(sec.key === 'solid') return sec.opBlank ? '在括号里填数、○ 里填运算符' : '在括号里填上合适的数';
+    // extend
+    if(sec.compare) return '在 ○ 里填 ＞、＜ 或 ＝；已印符号的题自由填数';
+    if(sec.opBlank) return '开放题：括号、○ 里自己设计填法，答案不唯一';
+    return '在括号里填上合适的数';
+  }
+
+  const ROMAN = {basic:'一', solid:'二', extend:'三'};
+
+  function sectionHTML(sec, fill){
+    if(!sec.items.length) return '';
+    return '<div class="sec" data-key="' + sec.key + '">'
+      + '<div class="sec-h">' + ROMAN[sec.key] + '、' + sec.name
+      + '<span class="cnt">（共 ' + sec.items.length + ' 题）</span>'
+      + '<span class="tip">' + tipOf(sec) + '</span></div>'
+      + '<div class="grid">' + sec.items.map(it => itemHTML(it, fill)).join('') + '</div>'
+      + '</div>';
+  }
+
+  function pageHTML(page, i, totalPages, cfg, title, fill){
+    const meta = '<div class="p-meta">'
+      + '<span>姓名 <i class="u"></i></span>'
+      + '<span>用时 <i class="u s"></i></span>'
+      + '<span>得分 <i class="u s"></i></span>'
+      + '</div>';
+    const dateTxt = state.date ? esc(state.date) : '<i class="u"></i>';
+    return '<div class="page" data-page="' + i + '">'
+      + '<div class="p-head"><div class="p-title">' + esc(title) + '</div>' + meta + '</div>'
+      + page.sections.map(s => sectionHTML(s, fill)).join('')
+      + '<div class="p-foot">'
+      +   '<span>班级：' + CLASS_NAME + '　日期：' + dateTxt + '</span>'
+      +   '<span>种子 ' + cfg.seed + '　第 ' + (i + 1) + ' / ' + totalPages + ' 页</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  let lastPages = [];
+
+  /* ---------------- 手机端缩放/平移视图 ---------------- */
+  let viewK = 1, viewTx = 0, viewTy = 0;
+
+  function fitK0(){
+    const { w, h } = pageSize();
+    // 按"完整放下整页"来适配（宽高取更小的比例），100% 时整页居中且不裁切
+    return Math.min(pagesEl.clientWidth / w, pagesEl.clientHeight / h);
+  }
+
+  function pageSize(){
+    const p = pagesEl.querySelector('.page');
+    return { w: +(p && p.dataset.w) || 794, h: +(p && p.dataset.h) || 1123 };
+  }
+
+  function applyViewTransform(){
+    pstackEl.style.transform = 'translate(' + viewTx + 'px,' + viewTy + 'px) scale(' + viewK + ')';
+  }
+
+  // 平移量夹紧，避免内容跑出可视区（内容比容器小则居中/顶部对齐）
+  function clampView(){
+    const cw = pagesEl.clientWidth, ch = pagesEl.clientHeight;
+    const { w, h } = pageSize();
+    const W = w * viewK, H = h * viewK;
+    viewTx = W <= cw ? (cw - W) / 2 : Math.min(0, Math.max(cw - W, viewTx));
+    viewTy = H <= ch ? Math.max(0, Math.min(ch - H, viewTy)) : Math.min(0, Math.max(ch - H, viewTy));
+  }
+
+  // 居中缩放：内容相对可视区居中
+  function fitPreview(){
+    if(!pstackEl) return;
+    if(window.innerWidth > 900){ pstackEl.style.transform = ''; return; }
+    const k0 = fitK0();
+    viewK = Math.max(0.12, Math.min(3, k0 * state.zoom));
+    const cw = pagesEl.clientWidth, ch = pagesEl.clientHeight;
+    const { w, h } = pageSize();
+    viewTx = (cw - w * viewK) / 2;
+    viewTy = (ch - h * viewK) / 2;
+    clampView();
+    applyViewTransform();
+  }
+
+  /* ---------------- 单页视图 / 翻页 ---------------- */
+  function totalPages(){ return pagesEl.querySelectorAll('.page').length; }
+
+  function applyPageView(){
+    const n = totalPages();
+    if(state.pageIdx > n - 1) state.pageIdx = Math.max(0, n - 1);
+    pagesEl.querySelectorAll('.page').forEach((pg, i) => {
+      pg.classList.toggle('off-page', i !== state.pageIdx);
+    });
+
+    // 页码
+    pgnumsEl.innerHTML = Array.from({ length: n }, (_, i) =>
+      '<button class="pgnum' + (i === state.pageIdx ? ' on' : '') + '" data-pg="' + i + '">' + (i + 1) + '</button>').join('');
+    pagerEl.classList.toggle('hide', n === 0);
+    const prev = pagerEl.querySelector('[data-d="-1"]'), next = pagerEl.querySelector('[data-d="1"]');
+    if(prev) prev.disabled = state.pageIdx <= 0;
+    if(next) next.disabled = state.pageIdx >= n - 1;
+
+    const zv = $('#zoomVal');
+    if(zv) zv.textContent = Math.round(state.zoom * 100) + '%';
+
+    fitPreview();
+    syncAnsToggles();
+  }
+
+  function setPage(i){
+    const n = totalPages(); if(!n) return;
+    state.pageIdx = Math.max(0, Math.min(n - 1, i));
+    applyPageView();
+    showPageTip();
+  }
+
+  if(pagerEl){
+    pagerEl.addEventListener('click', e => {
+      const btn = e.target.closest('button'); if(!btn) return;
+      if(btn.dataset.d) setPage(state.pageIdx + (+btn.dataset.d));
+      else if(btn.dataset.pg != null) setPage(+btn.dataset.pg);
+    });
+  }
+
+  // 页码提示：换页时短暂显示当前页，再逐渐透明消失
+  let pageTipTimer = null;
+  function showPageTip(){
+    if(window.innerWidth > 900) return;
+    const el = $('#pageTip'); if(!el) return;
+    const n = totalPages();
+    el.textContent = '第 ' + (state.pageIdx + 1) + ' / ' + n + ' 页';
+    el.classList.add('show');
+    clearTimeout(pageTipTimer);
+    pageTipTimer = setTimeout(() => el.classList.remove('show'), 1300);
+  }
+
+  // 缩放百分比提示：动态显示后逐渐透明直到消失
+  let zoomTipTimer = null;
+  function showZoom(){
+    const el = $('#zoomctl'); if(!el) return;
+    el.classList.add('show');
+    clearTimeout(zoomTipTimer);
+    zoomTipTimer = setTimeout(() => el.classList.remove('show'), 1200);
+  }
+
+  /* ---------------- 手机端：抽屉 / 操作条 / 边界提示 ---------------- */
+  function syncAnsToggles(){
+    const a = $('#tgAns'), b = $('#mAns');
+    if(a) a.classList.toggle('on', state.showAns);
+    if(b){ b.classList.toggle('on', state.showAns); b.textContent = state.showAns ? '答案 开' : '答案'; }
+  }
+
+  function openSheet(){
+    const p = document.querySelector('.panel'), m = $('#mask');
+    if(!p) return;
+    p.classList.add('open'); if(m) m.classList.add('on');
+    document.body.classList.add('lock');
+  }
+  function closeSheet(){
+    const p = document.querySelector('.panel'), m = $('#mask');
+    if(p) p.classList.remove('open');
+    if(m) m.classList.remove('on');
+    document.body.classList.remove('lock');
+  }
+
+  const mbarEl = $('#mbar'), fabEl = $('#fab'), maskEl = $('#mask');
+  if(fabEl) fabEl.addEventListener('click', openSheet);
+  if(maskEl) maskEl.addEventListener('click', closeSheet);
+  if(mbarEl){
+    mbarEl.addEventListener('click', e => {
+      const b = e.target.closest('button'); if(!b) return;
+      if(b.id === 'mPrint') window.print();
+      else if(b.id === 'mPdfSheet') exportPDF(false, b);
+      else if(b.id === 'mPdfAns') exportPDF(true, b);
+      else if(b.id === 'mAns'){ state.showAns = !state.showAns; render(); syncAnsToggles(); }
+    });
+  }
+
+  // 边界提示：几秒后逐渐淡出
+  let tipTimer = null;
+  function showTip(text){
+    const el = $('#edgeTip'); if(!el) return;
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => el.classList.remove('show'), 1700);
+  }
+
+  // 手势：单指滑动翻页 / 双指捏合缩放 / 放大后单指拖拽平移
+  let pinch = null, drag = null, swipe = null;
+
+  pagesEl.addEventListener('touchstart', e => {
+    if(e.touches.length === 2){
+      pinch = {
+        d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY),
+        k: viewK,
+        ax: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        ay: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+      drag = null; swipe = null;
+    } else if(e.touches.length === 1){
+      drag = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: viewTx, ty: viewTy };
+      swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+      pinch = null;
+    }
+  }, { passive: true });
+
+  pagesEl.addEventListener('touchmove', e => {
+    if(e.touches.length === 2 && pinch){
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const newK = Math.max(0.12, Math.min(3, pinch.k * d / pinch.d));
+      // 以捏合中点为锚点缩放
+      viewTx = pinch.ax - (pinch.ax - viewTx) * newK / pinch.k;
+      viewTy = pinch.ay - (pinch.ay - viewTy) * newK / pinch.k;
+      viewK = newK;
+      state.zoom = Math.max(1, Math.min(2.5, newK / fitK0()));
+      const zv = $('#zoomVal'); if(zv) zv.textContent = Math.round(state.zoom * 100) + '%';
+      showZoom();
+      clampView();
+      applyViewTransform();
+    } else if(e.touches.length === 1 && drag){
+      const t = e.touches[0];
+      const dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+      // 只有离开"适应宽度"后才允许拖拽平移
+      if(Math.abs(viewK - fitK0()) > 0.01 * fitK0()){
+        viewTx = drag.tx + dx; viewTy = drag.ty + dy;
+        clampView();
+        applyViewTransform();
+      }
+    }
+  }, { passive: true });
+
+  pagesEl.addEventListener('touchend', e => {
+    if(swipe && totalPages() > 1 && Math.abs(viewK - fitK0()) <= 0.01 * fitK0()){
+      const t = e.changedTouches[0];
+      const dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+      if(Date.now() - swipe.t <= 900 && Math.abs(dx) >= 45 && Math.abs(dx) >= Math.abs(dy) * 1.2){
+        const next = state.pageIdx + (dx < 0 ? 1 : -1);
+        const n = totalPages();
+        if(next < 0){ showTip('已经是第一页'); }
+        else if(next > n - 1){ showTip('已经是最后一页'); }
+        else setPage(next);
+      }
+    }
+    pinch = null; drag = null; swipe = null;
+  }, { passive: true });
+  let fitTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitPreview, 120);
+  });
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  function render(){
+    const cfg = Object.assign({}, state, {
+      sections: state.sections
+        .filter(x => x.on && x.count > 0)
+        .map(x => ({
+          key: x.key, count: x.count, ops: x.ops.slice(),
+          N: x.N,
+          maxL: x.maxL, maxR: x.maxR,
+          randomN: x.randomN, mixed: x.mixed, opBlank: x.opBlank,
+          compare: x.compare
+        }))
+    });
+    const title = state.title || autoTitle();
+
+    if(!cfg.sections.length){
+      lastPages = [];
+      pstackEl.innerHTML = '<div class="empty-tip">还没有题目<br><span>请在左侧「章节与题量」里至少启用一个章节，并把题量设到 1 以上</span></div>';
+      $('#barPages').textContent = 0;
+      $('#barItems').textContent = 0;
+      statBox.innerHTML = '当前没有可生成的题目';
+      state.pageIdx = 0;
+      applyPageView();          // 清空页码、隐藏翻页条
+      return;
+    }
+
+    lastPages = Engine.makeWorksheet(cfg);
+
+    let html = '';
+    lastPages.forEach((p, i) => { html += pageHTML(p, i, lastPages.length, cfg, title, state.showAns); });
+    pstackEl.innerHTML = html;
+
+    const totalItems = lastPages.reduce((a, p) => a + p.sections.reduce((b, s) => b + s.items.length, 0), 0);
+    const totalPaper = lastPages.length;
+
+    $('#barPages').textContent = totalPaper;
+    $('#barItems').textContent = totalItems;
+
+    autoFit();
+    // 记下未缩放的尺寸：手机端与缩放都会让 rect/offsetWidth 带上系数
+    [...pagesEl.querySelectorAll('.page')].forEach(pg => {
+      pg.dataset.w = pg.offsetWidth;
+      pg.dataset.h = pg.offsetHeight;
+    });
+    updateStat(totalItems, totalPaper);
+    applyPageView();
+  }
+
+  /* 自动排版：先定字号（横向不溢出），再把行高撑到刚好填满一页 */
+  function autoFit(){
+    const pages = [...pagesEl.querySelectorAll('.page')];
+    if(!pages.length) return;
+    // 每页 50 题：用 2 列，把横向空间让给字号（3 列时字号被最长算式卡在 13px）
+    const col = '88mm';
+    // 括号宽度按"答案最多几位"决定：20 以内→2 位，100 以内→3 位
+    const dg = rangeDigits();
+
+    const apply = (fs, row) => {
+      pages.forEach(p => {
+        p.style.setProperty('--fs', fs + 'px');
+        p.style.setProperty('--row', row + 'mm');
+        p.style.setProperty('--col', col);
+        p.style.setProperty('--dg', dg);
+      });
+    };
+    // 每张结构完全相同（都是 100 题）：二分搜索期间只让第一张参与布局，
+    // 否则每轮测量都会强制整篇（可能 10 张）重排，10 张时会卡到 0.7 秒
+    const probe = pages[0];
+    const rest = pages.slice(1);
+    rest.forEach(p => { p.style.display = 'none'; });
+    const tooWide = () => {
+      const qs = probe.querySelectorAll('.q');
+      for(const q of qs){
+        if(q.scrollWidth > q.clientWidth) return true;
+        const eq = q.querySelector('.eq');       // .eq 是 flex 子项，内部溢出不会反映到 .q
+        if(eq && eq.scrollWidth > eq.clientWidth + 0.5) return true;
+      }
+      return false;
+    };
+    const tooTall = () => probe.scrollHeight > probe.clientHeight;   // 严格判定：1px 溢出也要降行高，否则打印会顶出空白页
+
+    // 1) 二分：找横向不溢出的最大字号
+    function searchFs(){
+      let lo = 8, hi = 22;
+      for(let i = 0; i < 8; i++){
+        const mid = (lo + hi) / 2;
+        apply(mid, 6);
+        if(tooWide()) hi = mid; else lo = mid;
+      }
+      return Math.floor(lo * 4) / 4;   // 向下取整，避免四舍五入后又溢出
+    }
+
+    let fs = searchFs();
+    apply(fs, 6);
+
+    // 2) 二分：找纵向刚好不溢出的最大行高
+    let rlo = 5, rhi = 16, row = 5;
+    for(let i = 0; i < 8; i++){
+      const mid = (rlo + rhi) / 2;
+      apply(fs, mid);
+      if(tooTall()) rhi = mid; else { rlo = mid; row = mid; }
+    }
+    apply(fs, Math.floor(row * 100) / 100);
+
+    // 2.5) 纵向约束：题量多时行高会被压扁，字必须跟着缩，否则行距挤成一团
+    const rowPx = row * 96 / 25.4;
+    const fsByRow = Math.floor((rowPx / 1.6) * 4) / 4;
+    if(fsByRow < fs){
+      fs = Math.max(8, fsByRow);
+      apply(fs, row);
+    }
+
+    // 3) 兜底：极端配置仍溢出时继续压缩
+    let guard = 0;
+    while(tooTall() && guard++ < 24){
+      row = Math.max(4.2, row - 0.25);
+      if(guard > 12) fs = Math.max(7, fs - 0.25);
+      apply(fs, row);
+    }
+
+    rest.forEach(p => { p.style.display = ''; });   // 恢复其余页
+    apply(fs, row);
+  }
+
+  function updateStat(items, paper){
+    const dup = countDup(lastPages);
+    const parts = lastPages.length
+      ? lastPages[0].sections.map(x => x.name.replace('练习','') + ' ' + x.items.length +
+          (x.range ? '(' + x.range + '内)' : '')).join(' / ')
+      : '—';
+    let html = '';
+    html += '共 <b>' + lastPages.length + '</b> 张 · <b>' + items + '</b> 题（每张 ' + (items / lastPages.length) + ' 题）';
+
+    html += '<br>每张构成：' + parts;
+    html += '<br>等式两侧不同时出现「单个数」：<b>已强制</b>';
+    if(dup > 0) html += '<br><span class="warn">当前数值范围可选组合有限，有 ' + dup + ' 题重复</span>';
+    statBox.innerHTML = html;
+
+    const pn = $('#pageNote');
+    if(pn) pn.textContent = '共 ' + items + ' 题 · ' + lastPages.length + ' 页';
+
+  }
+
+  function countDup(pages){
+    const seen = new Set(); let dup = 0;
+    pages.forEach(p => p.sections.forEach(s => s.items.forEach(it => {
+      if(seen.has(it.key)) dup++; else seen.add(it.key);
+    })));
+    return dup;
+  }
+
+  /* ---------------- URL 参数：可分享固定配置 ---------------- */
+  function parseQuery(){
+    const s = location.search.replace(/^[?]/, '');
+    const out = {};
+    if(!s) return out;
+    s.split('&').forEach(kv => {
+      const i = kv.indexOf('=');
+      if(i < 0) return;
+      try { out[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1)); } catch(e){}
+    });
+    return out;
+  }
+
+  function applyQuery(){
+    const q = parseQuery();
+    if(!Object.keys(q).length) return;
+    const num = (v, d, lo, hi) => {
+      const n = parseInt(v, 10);
+      return isNaN(n) ? d : Math.max(lo, Math.min(hi, n));
+    };
+    const bool = v => v === '1' || v === 'true' || v === 'on';
+
+    if('pages' in q) state.pages = num(q.pages, 1, 1, 5);
+    if('n'     in q){
+      const v = num(q.n, 20, 2, 999);
+      state.sections.forEach(x => { x.N = v; });
+    }
+    if('seed'  in q) state.seed = num(q.seed, 1, 0, 4294967295);
+    if('ans'   in q) state.showAns = bool(q.ans);
+    if('title' in q) state.title = q.title;
+    if('date'  in q) state.date = q.date;
+    if('bare'  in q && bool(q.bare)) document.body.classList.add('bare');
+
+    // 章节题量：off=隐藏；basic/solid/extend=数量
+    if('off' in q){
+      q.off.split(/[,、\s]+/).filter(Boolean).forEach(k => {
+        const sec = state.sections.find(x => x.key === k);
+        if(sec) sec.on = false;
+      });
+    }
+    state.sections.forEach(x => {
+      const v = q[x.key];
+      if(v != null && v !== '') x.count = Math.max(0, Math.min(100, parseInt(v) || 0));
+    });
+
+    // 回写到控件
+    inpPages.value = state.pages;
+    syncPageStepper();
+    inpSeed.value = state.seed;
+    if(state.title) inpTitle.value = state.title;
+    if(state.date) $('#inpDate').value = state.date;
+    $('#tgAns').classList.toggle('on', state.showAns);
+  }
+
+  applyQuery();
+  buildSecList();
+  $('#inpDate').value = state.date;
+  syncPageStepper();
+  render();
+})();
+</script>
+</body>
+</html>
