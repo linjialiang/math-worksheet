@@ -1952,7 +1952,7 @@
       const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
       if(pinch.d <= 0 || d <= 0) return;
       const midX = (a.clientX + b.clientX) / 2, midY = (a.clientY + b.clientY) / 2;
-      const newK = Math.max(0.12, Math.min(3, pinch.k * d / pinch.d));
+      const newK = Math.max(fitK0(), Math.min(3, pinch.k * d / pinch.d));
       // 让内容锚点始终贴在两指中点：既能缩放又跟手平移
       viewK = newK;
       viewTx = midX - pinch.cx * newK;
@@ -1985,6 +1985,14 @@
         else if(next > n - 1){ showTip('已经是最后一页'); }
         else setPage(next);
       }
+    }
+    // 捏合结束时若停在 100% 附近，自动回正到 100% 居中
+    if(pinch && state.zoom <= 1.02){
+      state.zoom = 1;
+      pstackEl.style.transition = 'transform .28s ease';
+      fitPreview();
+      const zv = $('#zoomVal'); if(zv) zv.textContent = '100%';
+      setTimeout(() => { pstackEl.style.transition = ''; }, 300);
     }
     pinch = null; drag = null; swipe = null;
   }, { passive: true });
