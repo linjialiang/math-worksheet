@@ -175,6 +175,27 @@
     appearance:none;border:0;border-radius:8px;padding:10px 14px;font-size:13px;
     cursor:pointer;transition:.15s;font-weight:600;flex:1;
   }
+  .arch-open{
+    width:100%;display:flex;align-items:center;gap:8px;
+    margin-top:9px;padding:9px 12px;
+    border:1px solid #e6ebf2;border-radius:9px;background:#f8fafc;
+    color:#334155;font-size:12.5px;font-weight:600;cursor:pointer;transition:.16s;
+  }
+  .arch-open:hover{border-color:#c7d5ea;background:#f2f7ff;color:#1d4ed8}
+  .arch-open:active{transform:scale(.994)}
+  .arch-open .ic{width:15px;height:15px;flex:0 0 15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round}
+  .arch-open .tx{flex:1 1 auto;text-align:left}
+  .arch-open .cnt{
+    flex:0 0 auto;min-width:20px;height:19px;padding:0 6px;border-radius:999px;
+    background:#e7eefb;color:#3860cc;font-size:11px;font-weight:700;
+    display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
+  }
+  .arch-box{width:min(400px,92vw);max-height:min(78vh,620px);display:flex;flex-direction:column}
+  .arch-box .modal-hd{display:flex;align-items:baseline;gap:8px}
+  .arch-hint{font-size:11px;font-weight:400;color:#94a3b8}
+  .arch-bd{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 8px}
+  .arch-bd .archlist{max-height:none;overflow:visible;margin-top:10px}
+
   .arch-add{
     width:100%;display:flex;align-items:center;justify-content:center;gap:7px;
     margin-top:9px;padding:9px 12px;
@@ -577,11 +598,11 @@
 
       <div class="grp">
         <div class="lab">历史存档<span class="sub">存在本机浏览器，关掉再打开也还在</span></div>
-        <button class="arch-add" id="btnArchive">
-          <span class="ic" aria-hidden="true">+</span>
-          <span class="tx">存下当前这套</span>
+        <button class="arch-open" id="btnArchive">
+          <svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5.5h9M7 10h9M7 14.5h9M3.4 5.5h.01M3.4 10h.01M3.4 14.5h.01"/></svg>
+          <span class="tx">存档列表</span>
+          <span class="cnt" id="archCount">0</span>
         </button>
-        <div class="archlist" id="archList"></div>
       </div>
 
       <div class="stat" id="statBox"></div>
@@ -1242,6 +1263,22 @@
 <!-- =========================================================
      界面 & 渲染
      ========================================================= -->
+<div class="modal hide" id="archModal">
+  <div class="modal-mask" id="archMask"></div>
+  <div class="modal-box arch-box">
+    <div class="modal-hd"><span>历史存档</span><span class="arch-hint">点条目即可恢复</span></div>
+    <div class="modal-bd arch-bd">
+      <button class="arch-add" id="archSave">
+        <span class="ic" aria-hidden="true">+</span>
+        <span class="tx">存下当前这套</span>
+      </button>
+      <div class="archlist" id="archList"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn ghost" id="archClose">关闭</button>
+    </div>
+  </div>
+</div>
 <div class="sheet-mask" id="mask"></div>
 <button class="fab" id="fab" aria-label="设置">设置</button>
 <div class="edge-tip" id="edgeTip"></div>
@@ -2280,6 +2317,7 @@
   function renderArchives(){
     const box = $('#archList'); if(!box) return;
     const list = lsRead(LS_ARC, []);
+    const cnt = $('#archCount'); if(cnt) cnt.textContent = list.length;
     box.innerHTML = list.length
       ? list.map(a =>
           '<div class="architem" data-id="' + a.id + '">'
@@ -2296,7 +2334,7 @@
     renderArchives();
 
     // 保存反馈：按钮短暂变成「已存下」
-    const btn = $('#btnArchive'); if(!btn) return;
+    const btn = $('#archSave'); if(!btn) return;
     btn.classList.add('ok');
     const tx = btn.querySelector('.tx'), ic = btn.querySelector('.ic');
     if(tx) tx.textContent = '已存下这一套';
@@ -2316,7 +2354,25 @@
     render();
   }
 
+  function openArchives(){
+    const m = $('#archModal'); if(!m) return;
+    renderArchives();
+    m.classList.remove('hide');
+  }
+  function closeArchives(){
+    const m = $('#archModal'); if(m) m.classList.add('hide');
+  }
+
   (function(){
+    const openBtn = $('#btnArchive');
+    if(openBtn) openBtn.addEventListener('click', openArchives);
+    const closeBtn = $('#archClose');
+    if(closeBtn) closeBtn.addEventListener('click', closeArchives);
+    const mask = $('#archMask');
+    if(mask) mask.addEventListener('click', closeArchives);
+    const saveBtn = $('#archSave');
+    if(saveBtn) saveBtn.addEventListener('click', saveArchive);
+
     const box = $('#archList');
     if(box) box.addEventListener('click', e => {
       const del = e.target.closest('[data-del]');
@@ -2327,10 +2383,12 @@
         return;
       }
       const item = e.target.closest('.architem');
-      if(item) restoreArchive(+item.dataset.id);
+      if(item){ restoreArchive(+item.dataset.id); closeArchives(); }
     });
-    const btn = $('#btnArchive');
-    if(btn) btn.addEventListener('click', saveArchive);
+
+    document.addEventListener('keydown', e => {
+      if(e.key === 'Escape') closeArchives();
+    });
   })();
 
   function applyQuery(){
