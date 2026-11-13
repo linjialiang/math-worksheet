@@ -284,17 +284,15 @@
   .eq .blk.cmp::before,.eq .blk.cmp::after{content:none}
   .eq .eql{margin:0 .3em;font-weight:600}
   /* 答案填在括号/圆圈里（红色） */
-  .eq .blk.filled{justify-content:center;gap:.02em}
+  .eq .blk.filled{justify-content:center;gap:.02em;color:#dc2626}
   .eq .blk.filled b{color:#dc2626;font-weight:700;font-size:.9em;line-height:1}
-  .eq .blk.op.filled b,.eq .blk.cmp.filled b{font-size:.84em}
+  .eq .blk.filled .sym{width:.62em;height:.62em;display:block;overflow:visible}
+  .eq .blk.filled .sym path{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter}
+  .eq .blk.filled .sym circle{fill:currentColor;stroke:none}
   /* 全角＋－/比较符的字形墨迹天然偏下，按实测值上移，使其落在圆圈正中 */
   /* 微调一律用 padding 而非 transform/left：
      导出走「SVG→画布」渲染，transform 在那里与屏幕不完全一致，padding 则是纯布局，两边必然相同。
      flex 居中下加大某一侧 padding，内容会朝反方向移 padding/2 */
-  .eq .blk.op.filled b{line-height:1;padding-bottom:.16em}
-  .eq .blk.cmp.filled b{line-height:1;padding-bottom:.16em}
-  .eq .blk.cmp.filled b.gt{padding-left:.14em}
-  .eq .blk.cmp.filled b.lt{padding-right:.14em}
 
   .p-foot{
     flex:0 0 auto;margin-top:auto;padding-top:2mm;border-top:.8px solid #e2e8f0;
@@ -1717,12 +1715,27 @@
   /* ---------------- 渲染 ---------------- */
   const pagesEl = $('#pages');
 
+  /* 圆圈里的答案符号用内联 SVG 画，彻底摆脱字体基线差异 */
+  function symSVG(ch){
+    const P = {
+      '+': '<path d="M4.6 10h10.8M10 4.6v10.8"/>',
+      '-': '<path d="M4.6 10h10.8"/>',
+      '*': '<path d="M5.7 5.7 14.3 14.3M14.3 5.7 5.7 14.3"/>',
+      '/': '<path d="M4.6 10h10.8"/><circle cx="10" cy="5.4" r="1.25"/><circle cx="10" cy="14.6" r="1.25"/>',
+      '=': '<path d="M4.6 7.3h10.8M4.6 12.7h10.8"/>',
+      '>': '<path d="M7.4 4.6 13.2 10l-5.8 5.4"/>',
+      '<': '<path d="M12.6 4.6 6.8 10l5.8 5.4"/>'
+    }[ch];
+    // 必须带 xmlns：导出走 SVG/XML 解析，缺命名空间会当成未知元素而渲染不出来
+    return P ? '<svg class="sym" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" aria-hidden="true">' + P + '</svg>' : '';
+  }
+
   function sideHTML(side, fill){
     return side.toks.map(t => {
       if(t.blank){
         const cls = 'blk' + (t.t === 'op' ? ' op' : '');
         if(!fill) return '<i class="' + cls + '"></i>';
-        return '<i class="' + cls + ' filled"><b>' + (t.t === 'op' ? SYM[t.v] : t.v) + '</b></i>';
+        return '<i class="' + cls + ' filled">' + (t.t === 'op' ? symSVG(t.v) : '<b>' + t.v + '</b>') + '</i>';
       }
       if(t.t === 'op') return '<span class="op">' + SYM[t.v] + '</span>';
       return '<span class="num">' + t.v + '</span>';
@@ -1732,7 +1745,7 @@
   function itemHTML(it, fill){
     const mid = it.kind === 'compare'
       ? (fill
-          ? '<i class="blk cmp filled"><b class="' + (it.ans === '>' ? 'gt' : it.ans === '<' ? 'lt' : '') + '">' + it.ans + '</b></i>'
+          ? '<i class="blk cmp filled">' + symSVG(it.ans) + '</i>'
           : '<i class="blk cmp"></i>')
       : '<span class="eql">' + (it.mid || '=') + '</span>';
     return '<div class="q">'
