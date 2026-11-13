@@ -212,6 +212,8 @@
   }
   .arch-add.ok{border-style:solid;border-color:#9fd6b4;background:#f0fbf4;color:#15803d}
   .arch-add.ok .ic{background:#d3f2de;color:#15803d}
+  .arch-add.dup{border-style:solid;border-color:#f0cf9b;background:#fffaf0;color:#b45309}
+  .arch-add.dup .ic{background:#fdecc8;color:#b45309}
 
   .archlist{margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto}
   .architem{
@@ -2337,25 +2339,49 @@
           + '<button class="adel" data-del="' + a.id + '" title="删除">×</button></div>').join('')
       : '<div class="achempty">还没有存档，点上面按钮存一套</div>';
   }
-  let archOkTimer = null;
-  function saveArchive(){
-    const list = lsRead(LS_ARC, []);
-    list.unshift({ id: Date.now(), label: autoTitle(), data: snapshot() });
-    lsWrite(LS_ARC, list.slice(0, 20));
-    renderArchives();
+  // 指纹：只看决定题目内容的部分（种子/张数/各章节配置），标题日期等不影响
+  function sigOf(d){
+    if(!d) return '';
+    const secs = (d.sections || []).map(x => [
+      x.key, x.on ? 1 : 0, x.count, x.N,
+      (x.ops || []).slice().sort().join(''),
+      x.maxL, x.maxR,
+      x.randomN ? 1 : 0, x.mixed ? 1 : 0, x.opBlank ? 1 : 0, x.compare ? 1 : 0
+    ].join(',')).join('|');
+    return [d.seed, d.pages, secs].join('#');
+  }
 
-    // 保存反馈：按钮短暂变成「已存下」
+  let archOkTimer = null;
+  function flashArchBtn(cls, text, icon){
     const btn = $('#archSave'); if(!btn) return;
-    btn.classList.add('ok');
+    btn.classList.remove('ok', 'dup');
+    btn.classList.add(cls);
     const tx = btn.querySelector('.tx'), ic = btn.querySelector('.ic');
-    if(tx) tx.textContent = '已存下这一套';
-    if(ic) ic.textContent = '✓';
+    if(tx) tx.textContent = text;
+    if(ic) ic.textContent = icon;
     clearTimeout(archOkTimer);
     archOkTimer = setTimeout(() => {
-      btn.classList.remove('ok');
+      btn.classList.remove('ok', 'dup');
       if(tx) tx.textContent = '存下当前这套';
       if(ic) ic.textContent = '+';
     }, 1400);
+  }
+
+  function saveArchive(){
+    const data = snapshot();
+    const sig = sigOf(data);
+    const list = lsRead(LS_ARC, []);
+
+    // 完全一样（同种子 + 同题量分配 + 同章节配置）只存一份
+    if(list.some(a => sigOf(a.data) === sig)){
+      flashArchBtn('dup', '已记录过这套', '!');
+      return;
+    }
+
+    list.unshift({ id: Date.now(), label: autoTitle(), data });
+    lsWrite(LS_ARC, list.slice(0, 20));
+    renderArchives();
+    flashArchBtn('ok', '已存下这一套', '✓');
   }
   function restoreArchive(id){
     const a = lsRead(LS_ARC, []).find(x => x.id === id);
