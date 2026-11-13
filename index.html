@@ -222,6 +222,7 @@
   .architem .amain{flex:1 1 auto;min-width:0}
   .architem .at{font-size:12px;color:#334155;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .architem .ad{font-size:10.5px;color:#94a3b8;margin-top:2px;font-variant-numeric:tabular-nums}
+  .architem .ad-time{margin-top:1px;color:#b8c2d0;font-size:10px;letter-spacing:.2px}
   .architem .adel{
     flex:0 0 auto;width:20px;height:20px;border:0;background:transparent;border-radius:5px;
     color:#b6c0cf;font-size:15px;line-height:1;cursor:pointer;padding:0;
@@ -2316,10 +2317,12 @@
       ? on.map(s => (NAME[s.key] || s.key) + s.count).join('·')
       : '无题目';
     const seed = d.seed != null ? d.seed : '—';
+    return counts + ' · 种子 ' + seed;
+  }
+  function archTime(a){
     const t = new Date((a && a.id) || Date.now());
     const p = n => String(n).padStart(2, '0');
-    return counts + ' · 种子 ' + seed + ' · '
-      + p(t.getMonth() + 1) + '-' + p(t.getDate()) + ' ' + p(t.getHours()) + ':' + p(t.getMinutes());
+    return p(t.getMonth() + 1) + '-' + p(t.getDate()) + ' ' + p(t.getHours()) + ':' + p(t.getMinutes());
   }
   function renderArchives(){
     const box = $('#archList'); if(!box) return;
@@ -2329,7 +2332,8 @@
       ? list.map(a =>
           '<div class="architem" data-id="' + a.id + '">'
           + '<div class="amain"><div class="at">' + esc(a.label) + '</div>'
-          + '<div class="ad">' + esc(archMeta(a)) + '</div></div>'
+          + '<div class="ad">' + esc(archMeta(a)) + '</div>'
+          + '<div class="ad ad-time">' + esc(archTime(a)) + '</div></div>'
           + '<button class="adel" data-del="' + a.id + '" title="删除">×</button></div>').join('')
       : '<div class="achempty">还没有存档，点上面按钮存一套</div>';
   }
