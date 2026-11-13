@@ -2310,7 +2310,11 @@
   /* 历史存档 */
   function archMeta(a){
     const d = (a && a.data) || {};
-    const counts = (d.sections || []).map(s => s.count).join('/') || '—';
+    const NAME = { basic: '基础', solid: '巩固', extend: '拓展' };
+    const on = (d.sections || []).filter(s => s.on && s.count > 0);
+    const counts = on.length
+      ? on.map(s => (NAME[s.key] || s.key) + s.count).join('·')
+      : '无题目';
     const seed = d.seed != null ? d.seed : '—';
     const t = new Date((a && a.id) || Date.now());
     const p = n => String(n).padStart(2, '0');
