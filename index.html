@@ -175,6 +175,21 @@
     appearance:none;border:0;border-radius:8px;padding:10px 14px;font-size:13px;
     cursor:pointer;transition:.15s;font-weight:600;flex:1;
   }
+  .archlist{margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:190px;overflow:auto}
+  .architem{
+    display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #e6ebf2;
+    border-radius:9px;background:#f8fafc;cursor:pointer;transition:.15s;
+  }
+  .architem:hover{border-color:#c7d5ea;background:#f2f7ff}
+  .architem .amain{flex:1 1 auto;min-width:0}
+  .architem .at{font-size:12px;color:#334155;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .architem .ad{font-size:10.5px;color:#94a3b8;margin-top:2px;font-variant-numeric:tabular-nums}
+  .architem .adel{
+    flex:0 0 auto;width:20px;height:20px;border:0;background:transparent;border-radius:5px;
+    color:#b6c0cf;font-size:15px;line-height:1;cursor:pointer;padding:0;
+  }
+  .architem .adel:hover{background:#fee2e2;color:#dc2626}
+  .achempty{font-size:11.5px;color:#b6c0cf;padding:4px 2px}
   .seedin{flex:1 1 auto;min-width:0;width:auto}
   .seedin::-webkit-outer-spin-button,
   .seedin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -541,6 +556,14 @@
           <input type="number" class="textin seedin" id="inpSeed" value="20261111">
           <button class="btn ghost mini" id="btnReroll">换一批</button>
         </div>
+      </div>
+
+      <div class="grp">
+        <div class="lab">历史存档<span class="sub">存在本机浏览器，关掉再打开也还在</span></div>
+        <div class="numline">
+          <button class="btn ghost mini" id="btnArchive" style="flex:1 1 auto">存下当前这套</button>
+        </div>
+        <div class="archlist" id="archList"></div>
       </div>
 
       <div class="stat" id="statBox"></div>
@@ -2041,6 +2064,7 @@
       statBox.innerHTML = '当前没有可生成的题目';
       state.pageIdx = 0;
       applyPageView();          // 清空页码、隐藏翻页条
+      persistSettings();
       return;
     }
 
@@ -2064,6 +2088,7 @@
     });
     updateStat(totalItems, totalPaper);
     applyPageView();
+    persistSettings();
   }
 
   /* 自动排版：先定字号（横向不溢出），再把行高撑到刚好填满一页 */
@@ -2182,6 +2207,100 @@
     return out;
   }
 
+  /* ---------------- 本地存储：设置记忆 + 历史存档 ---------------- */
+  const LS_SET = 'mathws.settings.v1', LS_ARC = 'mathws.archives.v1';
+  const SEC_KEYS = ['count','N','ops','maxL','maxR','randomN','mixed','opBlank','compare'];
+  function lsRead(k, fb){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; }catch(e){ return fb; } }
+  function lsWrite(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+  function snapshot(){
+    return {
+      pages: state.pages, date: state.date, title: state.title,
+      showAns: state.showAns, seed: state.seed,
+      sections: state.sections.map(s => {
+        const o = { key: s.key, on: s.on };
+        SEC_KEYS.forEach(k => { o[k] = s[k]; });
+        return o;
+      })
+    };
+  }
+  function applySnapshot(o){
+    if(!o || typeof o !== 'object') return false;
+    ['pages','date','title','showAns','seed'].forEach(k => { if(o[k] !== undefined) state[k] = o[k]; });
+    if(Array.isArray(o.sections)) o.sections.forEach(sv => {
+      const cur = state.sections.find(x => x.key === sv.key);
+      if(!cur) return;
+      Object.keys(sv).forEach(k => { if(k !== 'key' && sv[k] !== undefined) cur[k] = sv[k]; });
+    });
+    state.pageIdx = 0; state.zoom = 1;
+    return true;
+  }
+
+  let saveTimer = null;
+  function persistSettings(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => lsWrite(LS_SET, snapshot()), 300);
+  }
+
+  function syncControls(){
+    inpPages.value = state.pages;
+    syncPageStepper();
+    inpSeed.value = state.seed;
+    inpTitle.value = state.title;
+    const dt = $('#inpDate'); if(dt) dt.value = state.date;
+    $('#tgAns').classList.toggle('on', state.showAns);
+    syncAnsToggles();
+  }
+
+  /* 历史存档 */
+  function archMeta(){
+    const p = n => String(n).padStart(2, '0');
+    const d = new Date();
+    return state.sections.map(s => s.count).join('/') + ' · '
+      + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function renderArchives(){
+    const box = $('#archList'); if(!box) return;
+    const list = lsRead(LS_ARC, []);
+    box.innerHTML = list.length
+      ? list.map(a =>
+          '<div class="architem" data-id="' + a.id + '">'
+          + '<div class="amain"><div class="at">' + esc(a.label) + '</div>'
+          + '<div class="ad">' + esc(a.meta) + '</div></div>'
+          + '<button class="adel" data-del="' + a.id + '" title="删除">×</button></div>').join('')
+      : '<div class="achempty">还没有存档，点上面按钮存一套</div>';
+  }
+  function saveArchive(){
+    const list = lsRead(LS_ARC, []);
+    list.unshift({ id: Date.now(), label: autoTitle(), meta: archMeta(), data: snapshot() });
+    lsWrite(LS_ARC, list.slice(0, 20));
+    renderArchives();
+  }
+  function restoreArchive(id){
+    const a = lsRead(LS_ARC, []).find(x => x.id === id);
+    if(!a || !applySnapshot(a.data)) return;
+    buildSecList();
+    syncControls();
+    render();
+  }
+
+  (function(){
+    const box = $('#archList');
+    if(box) box.addEventListener('click', e => {
+      const del = e.target.closest('[data-del]');
+      if(del){
+        e.stopPropagation();
+        lsWrite(LS_ARC, lsRead(LS_ARC, []).filter(x => x.id !== +del.dataset.del));
+        renderArchives();
+        return;
+      }
+      const item = e.target.closest('.architem');
+      if(item) restoreArchive(+item.dataset.id);
+    });
+    const btn = $('#btnArchive');
+    if(btn) btn.addEventListener('click', saveArchive);
+  })();
+
   function applyQuery(){
     const q = parseQuery();
     if(!Object.keys(q).length) return;
@@ -2215,18 +2334,14 @@
     });
 
     // 回写到控件
-    inpPages.value = state.pages;
-    syncPageStepper();
-    inpSeed.value = state.seed;
-    if(state.title) inpTitle.value = state.title;
-    if(state.date) $('#inpDate').value = state.date;
-    $('#tgAns').classList.toggle('on', state.showAns);
+    syncControls();
   }
 
-  applyQuery();
+  applySnapshot(lsRead(LS_SET, null));   // 先恢复上次的设置（localStorage）
+  applyQuery();                          // URL 参数优先级更高
   buildSecList();
-  $('#inpDate').value = state.date;
-  syncPageStepper();
+  syncControls();
+  renderArchives();
   render();
 })();
 </script>
