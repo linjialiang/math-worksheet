@@ -2308,11 +2308,14 @@
   }
 
   /* 历史存档 */
-  function archMeta(){
+  function archMeta(a){
+    const d = (a && a.data) || {};
+    const counts = (d.sections || []).map(s => s.count).join('/') || '—';
+    const seed = d.seed != null ? d.seed : '—';
+    const t = new Date((a && a.id) || Date.now());
     const p = n => String(n).padStart(2, '0');
-    const d = new Date();
-    return state.sections.map(s => s.count).join('/') + ' · '
-      + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return counts + ' · 种子 ' + seed + ' · '
+      + p(t.getMonth() + 1) + '-' + p(t.getDate()) + ' ' + p(t.getHours()) + ':' + p(t.getMinutes());
   }
   function renderArchives(){
     const box = $('#archList'); if(!box) return;
@@ -2322,14 +2325,14 @@
       ? list.map(a =>
           '<div class="architem" data-id="' + a.id + '">'
           + '<div class="amain"><div class="at">' + esc(a.label) + '</div>'
-          + '<div class="ad">' + esc(a.meta) + '</div></div>'
+          + '<div class="ad">' + esc(archMeta(a)) + '</div></div>'
           + '<button class="adel" data-del="' + a.id + '" title="删除">×</button></div>').join('')
       : '<div class="achempty">还没有存档，点上面按钮存一套</div>';
   }
   let archOkTimer = null;
   function saveArchive(){
     const list = lsRead(LS_ARC, []);
-    list.unshift({ id: Date.now(), label: autoTitle(), meta: archMeta(), data: snapshot() });
+    list.unshift({ id: Date.now(), label: autoTitle(), data: snapshot() });
     lsWrite(LS_ARC, list.slice(0, 20));
     renderArchives();
 
