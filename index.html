@@ -277,7 +277,7 @@
 
   /* ---------------- A4 页面 ---------------- */
   .page{
-    --fs:13.5px;--row:9mm;--row-solid:17.1mm;--col:44mm;
+    --fs:13.5px;--row:9mm;--row-solid:18.9mm;--col:44mm;
     /* 高度故意比 A4（297mm）少 0.5mm：与纸张等高时浏览器换算成 px 的舍入误差
        会让内容溢出 0.0x px，打印/另存 PDF 时就在末尾多顶出一张空白页 */
     width:210mm;height:296.5mm;flex:0 0 auto;background:#fff;padding:11mm 13mm;
@@ -313,9 +313,9 @@
      行数由 19 行降到 16 行，省下的高度自动转成三节更宽的上下留白。
      巩固稍长，3 列；拓展最长，2 列 */
   .sec[data-key="basic"] .grid{grid-template-columns:repeat(5,1fr);gap:0 3mm}
-  .sec[data-key="solid"] .grid{grid-template-columns:repeat(3,1fr)}
+  .sec[data-key="solid"] .grid{grid-template-columns:repeat(3,1fr);gap:1mm 4mm}
   .sec[data-key="extend"] .grid{grid-template-columns:repeat(2,1fr)}
-  /* 行高按「要不要动手画」分开：基础与拓展保持紧凑同高，巩固 1.9 倍。
+  /* 行高按「要不要动手画」分开：基础与拓展保持紧凑同高，巩固 2.1 倍。
      巩固题内容靠上对齐，标题到第一行字的距离与基础一致，多出的空白全落在表达式下方 */
   .sec[data-key="solid"] .q{
     height:var(--row-solid);
@@ -330,9 +330,14 @@
   .steplines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   .step-m{
     position:absolute;transform:translateX(-50%);z-index:2;
-    font-size:9px;font-weight:400;line-height:1.2;color:#64748b;
-    background:#fff;padding:0 2px;font-variant-numeric:tabular-nums;
+    display:inline-flex;align-items:center;justify-content:space-between;
+    width:2.5em;height:1.36em;line-height:1;padding:0 .12em;
+    font-size:9px;font-weight:400;color:#64748b;
+    background:#fff;font-variant-numeric:tabular-nums;
   }
+  .step-m::before{content:"("}
+  .step-m::after{content:")"}
+  .step-m b{color:#dc2626;font-weight:400}
   .q .idx{
     flex:0 0 auto;color:#94a3b8;font-size:.74em;width:2.1em;text-align:right;
     margin-right:.45em;font-variant-numeric:tabular-nums;
@@ -347,10 +352,10 @@
     min-width:calc(var(--dg,2) * .58em);text-align:center;
   }
   /* 运算子（填数）= 括号，框宽随答案位数 --dg 自适应：
-     1 位 ≈1.6em，2 位 ≈2.3em（10~99 能舒展开写两个数字），3 位 ≈2.9em */
+     1 位 ≈1.7em，2 位 ≈2.5em（10~99 能舒展开写两个数字），3 位 ≈3.3em */
   .eq .blk{
     display:inline-flex;align-items:center;justify-content:space-between;
-    width:calc(0.92em + var(--dg,1) * 0.6em);height:1.36em;
+    width:calc(0.92em + var(--dg,1) * 0.8em);height:1.36em;
     border:0;background:transparent;flex:0 0 auto;
     font-style:normal;color:#334155;letter-spacing:.02em;
   }
@@ -2019,7 +2024,7 @@
           ? '<i class="blk cmp filled">' + symSVG(it.ans) + '</i>'
           : '<i class="blk cmp"></i>')
       : '<span class="eql">' + (it.mid || '=') + '</span>';
-    const info = (fill && secKey === 'solid') ? stepInfo(it) : null;
+    const info = (secKey === 'solid') ? stepInfo(it) : null;
     const stepAttr = info ? ' data-step="' + info.mode + '" data-step-m="' + info.m + '"' : '';
     return '<div class="q"' + stepAttr + '>'
          + '<span class="eq"><span class="side lhs">' + sideHTML(it.L, fill) + '</span>'
@@ -2092,16 +2097,14 @@
       const y = Math.max(p1.bottom, p2.bottom) + 1.2;
       // 按题目下方剩余空间自适应：折线更深、中间结果更大，同时不撑破行高
       const room = q.offsetHeight - y;
-      const depth = Math.max(4.5, Math.min(7.5, room * 0.25));
+      const depth = Math.max(4.5, Math.min(7.5, room * 0.22));
       const fs = Math.max(12, Math.min(15.5, room * 0.5));
-      // 线和字之间多留一点，字整体往下放
-      const gap = Math.max(2.5, room - depth - fs * 1.2 - 1.5);
-      // 折线从两个数字各自的中心点向下，不包住整个数字宽度
+      // 中间结果用括号框住，紧跟在折线下方
       const c1 = (p1.left + p1.right) / 2;
       const c2 = (p2.left + p2.right) / 2;
       const mx = (c1 + c2) / 2;
-      const labelY = y + depth + gap;
-      const labelMid = labelY + fs * 0.6;
+      const labelY = y + depth + 2;
+      const labelMid = labelY + fs * 0.68;
       const tx = (pt.left + pt.right) / 2;
 
       const NS = 'http://www.w3.org/2000/svg';
@@ -2118,7 +2121,11 @@
 
       const lab = document.createElement('span');
       lab.className = 'step-m';
-      lab.textContent = q.dataset.stepM;
+      if(state.showAns){
+        const b = document.createElement('b');
+        b.textContent = q.dataset.stepM;
+        lab.appendChild(b);
+      }
       lab.style.left = mx + 'px';
       lab.style.top = labelY + 'px';
       lab.style.fontSize = fs + 'px';
@@ -2414,7 +2421,7 @@
     $('#barItems').textContent = totalItems;
 
     autoFit();
-    if(state.showAns) drawSteps();
+    drawSteps();
     // 记下未缩放的尺寸：手机端与缩放都会让 rect/offsetWidth 带上系数
     [...pagesEl.querySelectorAll('.page')].forEach(pg => {
       pg.dataset.w = pg.offsetWidth;
@@ -2435,8 +2442,8 @@
     const col = '88mm';
     // 括号宽度按"答案最多几位"决定：现在最大 99，统一按 2 位
     const dg = rangeDigits();
-    // 基础与拓展同为 1 倍行高；巩固 1.9 倍，多出的高度全部留给表达式下方画图
-    const ROW_MUL = { solid: 1.9 };
+    // 基础与拓展同为 1 倍行高；巩固 2.1 倍，多出的高度全部留给表达式下方画图
+    const ROW_MUL = { solid: 2.1 };
 
     const apply = (fs, row) => {
       pages.forEach(p => {
