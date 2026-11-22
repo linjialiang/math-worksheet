@@ -374,6 +374,21 @@
   }
   .eq .blk.cmp::before,.eq .blk.cmp::after{content:none}
   .eq .eql{margin:0 .3em;font-weight:600}
+  /* 拓展题型混排：数字、括号、实线/虚线圆圈统一成同高盒子垂直居中，避免上下错位 */
+  .sec[data-key="extend"] .eq .num,
+  .sec[data-key="extend"] .eq .op:not(.blk),
+  .sec[data-key="extend"] .eq .eql{
+    display:inline-flex;align-items:center;justify-content:center;
+    height:1.36em;line-height:1;
+  }
+  .sec[data-key="extend"] .eq .num{text-align:center}
+  .sec[data-key="extend"] .eq .blk.op,
+  .sec[data-key="extend"] .eq .blk.cmp{top:0}
+  /* 运算符、等号和括号的字形墨迹比数字略低，统一上移一点，落在同一中心线 */
+  .sec[data-key="extend"] .eq .op:not(.blk),
+  .sec[data-key="extend"] .eq .eql{position:relative;top:-.06em}
+  .sec[data-key="extend"] .eq .blk:not(.op):not(.cmp)::before,
+  .sec[data-key="extend"] .eq .blk:not(.op):not(.cmp)::after{position:relative;top:-.07em}
   /* 基础题只有 a ± b =（ ）：数字少，把数字与运算符之间的间距收紧，
      5 列排布下每道题更像一整条紧凑算式，省出的宽度留给字号 */
   .sec[data-key="basic"] .eq{gap:.14em}
@@ -395,9 +410,9 @@
   .p-foot{
     flex:0 0 auto;margin-top:auto;padding-top:2.6mm;border-top:.8px solid #e2e8f0;
     display:flex;justify-content:space-between;align-items:baseline;
-    font-size:11px;color:#64748b;
+    font-size:13px;color:#64748b;
   }
-  .p-foot i.u{display:inline-block;border-bottom:.8px solid #94a3b8;height:10px;min-width:34mm;vertical-align:-1px}
+  .p-foot i.u{display:inline-block;border-bottom:.8px solid #94a3b8;height:11px;min-width:34mm;vertical-align:-1px}
   .p-foot span:last-child{color:#94a3b8}
 
   /* 答案页 */
@@ -2064,7 +2079,7 @@
       + '<div class="p-head"><div class="p-title">' + esc(title) + '</div>' + meta + '</div>'
       + page.sections.map(s => sectionHTML(s, fill)).join('')
       + '<div class="p-foot">'
-      +   '<span>班级：' + CLASS_NAME + '　日期：' + dateTxt + '</span>'
+      +   '<span>' + CLASS_NAME + '　日期：' + dateTxt + '</span>'
       +   '<span>种子 ' + cfg.seed + '　第 ' + (i + 1) + ' / ' + totalPages + ' 页</span>'
       + '</div>'
       + '</div>';
