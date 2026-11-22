@@ -137,6 +137,7 @@
   .modal-bd{padding:13px 16px 3px}
   .mrow{display:flex;align-items:center;gap:8px;margin-bottom:11px}
   .mrow .rl{font-size:11.5px;color:#94a3b8;flex:0 0 58px;white-space:nowrap}
+  .mrow .rec{font-size:11.5px;color:#64748b;white-space:nowrap}
   .modal-ft{display:flex;gap:9px;padding:10px 16px 16px}
   .modal-ft .btn,.modal-ft .btn.ghost{flex:1 1 0;padding:10px 14px}
   .sel.sm{flex:0 0 116px;height:30px;padding:0 27px 0 10px;background-position:right 8px center}
@@ -276,7 +277,7 @@
 
   /* ---------------- A4 页面 ---------------- */
   .page{
-    --fs:13.5px;--row:9mm;--col:44mm;
+    --fs:13.5px;--row:9mm;--row-solid:17.1mm;--col:44mm;
     /* 高度故意比 A4（297mm）少 0.5mm：与纸张等高时浏览器换算成 px 的舍入误差
        会让内容溢出 0.0x px，打印/另存 PDF 时就在末尾多顶出一张空白页 */
     width:210mm;height:296.5mm;flex:0 0 auto;background:#fff;padding:11mm 13mm;
@@ -284,7 +285,7 @@
     overflow:hidden;color:#0f172a;position:relative;
   }
   .p-head{
-    flex:0 0 auto;border-bottom:1.6px solid #0f172a;padding-bottom:2mm;margin-bottom:2.6mm;
+    flex:0 0 auto;border-bottom:1.6px solid #0f172a;padding-bottom:2mm;margin-bottom:3.2mm;
     display:flex;align-items:flex-end;justify-content:space-between;gap:6mm;
   }
   .p-title{
@@ -298,21 +299,39 @@
   .p-meta i.u{display:inline-block;border-bottom:.9px solid #64748b;height:10px;width:22mm;vertical-align:-1px}
   .p-meta i.u.s{width:15mm}
 
-  .sec{flex:0 0 auto;margin-bottom:2.2mm}
+  /* 章节之间拉开距离：孩子要一眼分清基础 / 巩固 / 拓展三段 */
+  .sec{flex:0 0 auto;margin-bottom:3.4mm}
   .sec-h{
     display:flex;align-items:baseline;gap:6px;font-size:11.5px;font-weight:700;
-    color:#0f172a;margin-bottom:1mm;letter-spacing:.2px;
+    color:#0f172a;margin-bottom:1.7mm;letter-spacing:.2px;
   }
   .sec-h .tip{font-weight:400;font-size:9.5px;color:#64748b}
   .sec-h .cnt{font-weight:400;font-size:9.5px;color:#94a3b8}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--col),1fr));gap:0 4mm}
-  /* 基础算式最短（两数 + 一个括号），4 列；巩固稍长，3 列；拓展最长，2 列 */
-  .sec[data-key="basic"] .grid{grid-template-columns:repeat(4,1fr)}
+  /* 基础算式最短（两数 + 一个括号）用 5 列，列距略收窄以容纳算式；
+     行数由 19 行降到 16 行，省下的高度自动转成三节更宽的上下留白。
+     巩固稍长，3 列；拓展最长，2 列 */
+  .sec[data-key="basic"] .grid{grid-template-columns:repeat(5,1fr);gap:0 3mm}
   .sec[data-key="solid"] .grid{grid-template-columns:repeat(3,1fr)}
+  .sec[data-key="extend"] .grid{grid-template-columns:repeat(2,1fr)}
+  /* 行高按「要不要动手画」分开：基础与拓展保持紧凑同高，巩固 1.9 倍。
+     巩固题内容靠上对齐，标题到第一行字的距离与基础一致，多出的空白全落在表达式下方 */
+  .sec[data-key="solid"] .q{
+    height:var(--row-solid);
+    padding-top:calc(var(--row) / 2 - var(--fs) * 0.775);
+    padding-bottom:calc(var(--row-solid) - var(--row) / 2 - var(--fs) * 0.775);
+  }
   .q{
     height:var(--row);display:flex;align-items:center;overflow:hidden;
-    font-size:var(--fs);white-space:nowrap;padding-right:1.2mm;
+    font-size:var(--fs);white-space:nowrap;padding-right:1.2mm;position:relative;
+  }
+  /* 答案模式：巩固题下方用折线把先算的两个数括起来，标出中间结果（绝对定位，不占行高） */
+  .steplines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .step-m{
+    position:absolute;transform:translateX(-50%);z-index:2;
+    font-size:9px;font-weight:400;line-height:1.2;color:#64748b;
+    background:#fff;padding:0 2px;font-variant-numeric:tabular-nums;
   }
   .q .idx{
     flex:0 0 auto;color:#94a3b8;font-size:.74em;width:2.1em;text-align:right;
@@ -350,9 +369,16 @@
   }
   .eq .blk.cmp::before,.eq .blk.cmp::after{content:none}
   .eq .eql{margin:0 .3em;font-weight:600}
+  /* 基础题只有 a ± b =（ ）：数字少，把数字与运算符之间的间距收紧，
+     5 列排布下每道题更像一整条紧凑算式，省出的宽度留给字号 */
+  .sec[data-key="basic"] .eq{gap:.14em}
+  .sec[data-key="basic"] .eq .side{gap:.12em}
+  .sec[data-key="basic"] .eq .op{padding:0}
+  .sec[data-key="basic"] .eq .eql{margin:0 .16em}
   /* 答案填在括号/圆圈里（红色） */
-  .eq .blk.filled{justify-content:center;gap:.02em;color:#dc2626}
-  .eq .blk.filled b{color:#dc2626;font-weight:700;font-size:.9em;line-height:1}
+  .eq .blk.filled{justify-content:center;gap:.02em;color:#0f172a}
+  .eq .blk.op.filled,.eq .blk.cmp.filled{color:#dc2626}
+  .eq .blk.filled b{color:#dc2626;font-weight:400;font-size:1em;line-height:1}
   .eq .blk.filled .sym{width:.62em;height:.62em;display:block;overflow:visible}
   .eq .blk.filled .sym path{fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter}
   .eq .blk.filled .sym circle{fill:currentColor;stroke:none}
@@ -362,7 +388,7 @@
      flex 居中下加大某一侧 padding，内容会朝反方向移 padding/2 */
 
   .p-foot{
-    flex:0 0 auto;margin-top:auto;padding-top:2mm;border-top:.8px solid #e2e8f0;
+    flex:0 0 auto;margin-top:auto;padding-top:2.6mm;border-top:.8px solid #e2e8f0;
     display:flex;justify-content:space-between;align-items:baseline;
     font-size:9px;color:#64748b;
   }
@@ -668,10 +694,11 @@
           <option value="10">10 以内</option>
           <option value="20">20 以内</option>
           <option value="50">50 以内</option>
-          <option value="100">100 以内</option>
+          <option value="99">99 以内</option>
           <option value="custom">自定义</option>
         </select>
-        <input class="secnum hide" id="mdNum" type="number" min="2" max="999">
+        <input class="secnum hide" id="mdNum" type="number" min="2" max="99">
+        <span class="rec" id="mdRec"></span>
       </div>
       <div class="mrow"><span class="rl">运算符</span><div class="chips mini" id="mdOps"></div></div>
       <div class="mrow" id="mdRowL"><span class="rl">左边个数</span><div class="seg mini" id="mdL" data-seg="maxL"></div></div>
@@ -894,7 +921,7 @@
   function sideKey(s){
     return s.toks.map(t => t.blank ? (t.t === 'op' ? '?' : '_') : (t.t === 'op' ? t.v : t.v)).join('');
   }
-  function itemKey(it){ return sideKey(it.L) + '=' + sideKey(it.R); }
+  function itemKey(it){ return sideKey(it.L) + '=' + sideKey(it.R) + (it.mid ? '|' + it.mid : ''); }
 
   /* ---------------- 形状选取（硬性规则 1） ---------------- */
   function pickShape(cfg){
@@ -1075,26 +1102,91 @@
     return null;
   }
 
-  /* ---------------- 题型 5：拓展（比较题 + 开放题 混合） ---------------- */
+  /* ---------------- 题型 5：拓展（比较 + 开放综合） ----------------
+     每题都围绕一个比较关系，但呈现方式随机混合：
+       · 比较符：虚线圆圈留空（填 ＞＜＝）或直接印好（自由填数）
+       · 括号：左右两侧都可能挖数字空
+       · 实线圆圈：左右两侧都可能挖运算符空
+     三种空允许出现在同一题里；比较符留空时，两侧仍可带括号/实线圆圈。 */
   function makeExtensionItem(cfg, idx){
+    // 对比关系关闭时保持原来的开放创造题
     if(cfg.compare === false){
       const shape = pickShape(cfg);
       return makeCreate(cfg, shape[0], shape[1], cfg.mixed ? null : pick(cfg.ops));
     }
-    // 对比关系填空打开时，节内两类交替：
-    //   偶数题 → 圆圈留空，学生填 ＞ ＜ ＝
-    //   奇数题 → 符号先印好（＞ ＜ ＝ 轮换），学生自由填数
-    const isCompare = idx % 2 === 0;
-    const sign = ['>', '<', '='][Math.floor(idx / 2) % 3];
 
-    if(isCompare) return makeCompareItem(cfg, sign);
+    // 三种关系按题号轮换，保证 ＞ / ＜ / ＝ 都会出现
+    const want = ['>', '<', '='][idx % 3];
 
-    // 已印符号的题只挖"数字空"，让学生自由填数（运算符空留给"巩固"，这里不掺）
-    const freeCfg = Object.assign({}, cfg, { opBlank: false });
-    const shape = pickShape(freeCfg);
-    const it = makeCreate(freeCfg, shape[0], shape[1], freeCfg.mixed ? null : pick(freeCfg.ops));
-    if(it) it.mid = sign;
-    return it;
+    for(let t = 0; t < 24; t++){
+      const shape = pickShape(cfg);
+      const kL = shape[0], kR = shape[1];
+      const forced = cfg.mixed ? null : pick(cfg.ops);
+
+      const left = buildSide(kL, cfg, forced);
+      if(!left) continue;
+
+      // 右侧凑出指定关系（＝ 直接反解，＞/＜ 重试）
+      let right = null;
+      if(want === '='){
+        const bs = buildSideForValue(kR, cfg, forced, left.value);
+        if(bs) right = { nums:bs.nums, ops:bs.ops, value:left.value };
+      } else {
+        for(let k = 0; k < 20; k++){
+          const r = buildSide(kR, cfg, forced);
+          if(!r) continue;
+          const rel = left.value > r.value ? '>' : (left.value < r.value ? '<' : '=');
+          if(rel === want){ right = r; break; }
+        }
+      }
+      if(!right) continue;
+
+      const sigL = left.nums.join(',') + '|' + left.ops.join('');
+      const sigR = right.nums.join(',') + '|' + right.ops.join('');
+      if(sigL === sigR) continue;             // 两边完全一样太容易
+
+      // 可挖位置：左侧首个数字保留作锚点，其余数字和两侧运算符都可挖
+      const numSlots = [], opSlots = [];
+      for(let i = 1; i < left.nums.length; i++) numSlots.push({ s:'L', i });
+      for(let i = 0; i < right.nums.length; i++) numSlots.push({ s:'R', i });
+      for(let i = 0; i < left.ops.length; i++) opSlots.push({ s:'L', i });
+      for(let i = 0; i < right.ops.length; i++) opSlots.push({ s:'R', i });
+      shuffle(numSlots); shuffle(opSlots);
+
+      // 偶数题偏向比较符留空、奇数题偏向印好符号：整张卷两种呈现都会出现
+      const cmpBlank = idx % 2 === 0 ? rand() < 0.8 : rand() < 0.2;
+      // 每题都至少留一个括号空（左右两侧任选）；额外空 1~3 个，
+      // 运算符空只分给已有 2 个以上空的题，避免题面太空
+      const extra = 1 + rnd(3);
+      let nOp = (cfg.opBlank && opSlots.length && extra >= 2 && rand() < 0.7) ? 1 : 0;
+      let nNum = Math.min(numSlots.length, extra - nOp);
+      if(nNum === 0){
+        if(numSlots.length){ nOp = 0; nNum = 1; }
+        else if(opSlots.length) nOp = 1;
+        else continue;             // 两侧都只有单个数，挖不出空
+      }
+
+      const numPick = numSlots.slice(0, nNum), opPick = opSlots.slice(0, nOp);
+      const lNum = numPick.filter(p => p.s === 'L').map(p => p.i);
+      const rNum = numPick.filter(p => p.s === 'R').map(p => p.i);
+      const lOp  = opPick.filter(p => p.s === 'L').map(p => p.i);
+      const rOp  = opPick.filter(p => p.s === 'R').map(p => p.i);
+
+      const ans = left.value > right.value ? '>' : (left.value < right.value ? '<' : '=');
+      const it = {
+        L: mkSide(left.nums, left.ops, { num:lNum, op:lOp }),
+        R: mkSide(right.nums, right.ops, { num:rNum, op:rOp }),
+        kind: 'compare'
+      };
+      if(cmpBlank){
+        it.ans = ans;              // 虚线圆圈留空，答案页填回关系
+      } else {
+        it.kind = 'create';        // 已印符号：中间直接显示 ＞/＜/＝
+        it.mid = ans;
+      }
+      return it;
+    }
+    return null;
   }
 
   /* ---------------- 兜底题：必须遵守当前运算符设置 ---------------- */
@@ -1225,7 +1317,7 @@
       let no = 1;
       for(const sec of enabled){
         const sc = {
-          N: Math.max(2, Math.min(999, (sec.N | 0) || cfg.N || 20)),
+          N: Math.max(2, Math.min(99, (sec.N | 0) || cfg.N || 20)),
           ops: (sec.ops && sec.ops.length) ? sec.ops.slice() : ['+','-'],
           maxL: Math.max(1, Math.min(3, sec.maxL | 0 || 2)),
           maxR: Math.max(1, Math.min(3, sec.maxR | 0 || 2)),
@@ -1249,7 +1341,12 @@
         }
         for(let i = 0; i < n; i++){
           let it;
-          if(pool && poolCursor.basic < pool.length){
+          if(pool){
+            if(poolCursor.basic >= pool.length){
+              // 组合用尽：重新洗牌再从头取，重复也能均匀分布，而不是随机扎堆
+              shuffleArr(pool);
+              poolCursor.basic = 0;
+            }
             it = Object.assign({}, pool[poolCursor.basic++]);   // 浅拷贝，避免改动池中共享对象
           } else {
             it = makeItem(sec.key, sc, used, i);                // i 用于拓展节交替两种题型
@@ -1304,8 +1401,8 @@
   const SYM = {'+':'+', '-':'−', '*':'×', '/':'÷'};
 
   const SECTION_DEFS = [
-    {key:'basic',  name:'基础练习', count:76, N:20, ops:['+','-'], maxL:2, maxR:1, randomN:false, mixed:false, opBlank:false, compare:false},
-    {key:'solid',  name:'巩固练习', count:18, N:20, ops:['+','-'], maxL:3, maxR:1, randomN:false, mixed:true,  opBlank:true,  compare:false},
+    {key:'basic',  name:'基础练习', count:85, N:20, ops:['+','-'], maxL:2, maxR:1, randomN:false, mixed:false, opBlank:false, compare:false},
+    {key:'solid',  name:'巩固练习', count:9,  N:20, ops:['+','-'], maxL:3, maxR:1, randomN:false, mixed:true,  opBlank:true,  compare:false},
     {key:'extend', name:'拓展练习', count:6, N:20, ops:['+','-'], maxL:3, maxR:3, randomN:true,  mixed:true,  opBlank:true,  compare:true}
   ];
 
@@ -1337,7 +1434,21 @@
 
   /* ---------------- 章节卡片 ---------------- */
   const OP_LABEL = {'+':'＋','-':'－','*':'×','/':'÷'};
-  const RANGE_PRESETS = ['5','10','20','50','100'];
+  const RANGE_PRESETS = ['5','10','20','50','99'];
+  // 每档都正好 100 题，一页排满。基础 70~85%、巩固 9~18%、拓展 6~12%：
+  // 基础保证事实流畅（retrieval），巩固/拓展提供变式与迁移（interleaving）。
+  // 20 以内默认 85/9/6，基础行距更宽松；难度高的范围适当增加多步题。
+  const COUNT_PRESETS = {
+    '5':  { basic:70, solid:18, extend:12 },
+    '10': { basic:75, solid:15, extend:10 },
+    '20': { basic:85, solid:9,  extend:6 },
+    '50': { basic:70, solid:18, extend:12 },
+    '99': { basic:70, solid:18, extend:12 }
+  };
+
+  // 各节每行的列数（与 .grid 的 grid-template-columns 保持一致）：
+  // 题量按整行增减，最后一排永远是满的，界面空间不浪费。
+  const SEC_COLS = { basic:5, solid:3, extend:2 };
 
   function opsLabel(ops){
     return ops.map(o => OP_LABEL[o]).join('');
@@ -1360,9 +1471,9 @@
       +   '<button class="sw2' + (s.on ? ' on' : '') + '" data-act="on"></button>'
       +   '<div class="sechd-main"><div class="secname">' + s.name + '</div></div>'
       +   '<div class="stepper">'
-      +     '<button class="stp" data-act="dec"' + (s.count <= 0 ? ' disabled' : '') + ' title="减少 1 题（按住 Shift 减 5）">−</button>'
-      +     '<input class="seccount" type="number" min="0" max="100" value="' + s.count + '">'
-      +     '<button class="stp" data-act="inc" title="增加 1 题（按住 Shift 加 5）">+</button>'
+      +     '<button class="stp" data-act="dec"' + (s.count <= 0 ? ' disabled' : '') + ' title="减少一行（' + (SEC_COLS[s.key] || 1) + ' 题，Shift 减 5 行）">−</button>'
+      +     '<input class="seccount" type="number" min="0" max="100" step="' + (SEC_COLS[s.key] || 1) + '" value="' + s.count + '">'
+      +     '<button class="stp" data-act="inc" title="增加一行（' + (SEC_COLS[s.key] || 1) + ' 题，Shift 加 5 行）">+</button>'
       +   '</div>'
       +   '<span class="unit">题</span>'
       +   '<button class="secedit" data-act="edit">修改</button>'
@@ -1398,6 +1509,7 @@
     sel.value = RANGE_PRESETS.indexOf(String(d.N)) >= 0 ? String(d.N) : 'custom';
     num.value = d.N;
     num.classList.toggle('hide', sel.value !== 'custom');
+    syncMdRec();
 
     $('#mdOps').innerHTML = ['+','-','*','/'].map(o =>
       '<button class="chip' + (d.ops.indexOf(o) >= 0 ? ' on' : '') + '" data-op="' + o + '">' + OP_LABEL[o] + '</button>').join('');
@@ -1414,6 +1526,14 @@
     $('#mdRowL').classList.toggle('hide', fixed);
     $('#mdRowR').classList.toggle('hide', fixed);
     $('#mdRowT').classList.toggle('hide', fixed);
+  }
+
+  // 范围弹窗里的推荐题量提示
+  function syncMdRec(){
+    if(!mDraft) return;
+    const rec = COUNT_PRESETS[String(mDraft.N)];
+    const el = $('#mdRec');
+    if(el) el.textContent = (rec && rec[mDraft.key] != null) ? '推荐 ' + rec[mDraft.key] + ' 题' : '';
   }
 
   function renderModalToggles(){
@@ -1435,6 +1555,8 @@
         const keys = Engine.LOCKED_SHAPE[mKey] ? ['N'] : ['N','maxL','maxR','randomN','mixed','opBlank','compare'];
         keys.forEach(k => { sec[k] = mDraft[k]; });
         sec.ops = mDraft.ops.slice();
+        sec.count = mDraft.count;      // 范围切换时套用的推荐题量
+        rebalanceBudget(mKey);         // 三节合计不超过 100
       }
       closeSectionDialog();
       buildSecList();     // 刷新卡片摘要
@@ -1472,17 +1594,21 @@
     const num = $('#mdNum');
     if(e.target.value === 'custom'){
       num.classList.remove('hide');
-      mDraft.N = Math.max(2, Math.min(999, parseInt(num.value) || 30));
+      mDraft.N = Math.max(2, Math.min(99, parseInt(num.value) || 30));
       num.focus(); num.select();
     } else {
       mDraft.N = +e.target.value;
+      // 选回预设范围时题量跟着推荐值走；自定义范围保留用户自己的题量
+      const rec = COUNT_PRESETS[e.target.value];
+      if(rec && rec[mDraft.key] != null) mDraft.count = rec[mDraft.key];
       num.value = mDraft.N;
       num.classList.add('hide');
     }
+    syncMdRec();
   });
   $('#mdNum').addEventListener('input', e => {
     if(!mDraft) return;
-    mDraft.N = Math.max(2, Math.min(999, parseInt(e.target.value) || 2));
+    mDraft.N = Math.max(2, Math.min(99, parseInt(e.target.value) || 2));
   });
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape' && mDraft) closeSectionDialog();
@@ -1502,16 +1628,27 @@
     const total = secs.reduce((a,x) => a + x.count, 0);
     if(total <= 100){ return; }
     let over = total - 100;
+    // 按整行削减：不会把某一节削成半行，保证最后一排始终是满的
+    const cutRows = s => {
+      const cols = SEC_COLS[s.key] || 1;
+      const rows = Math.min(Math.ceil(over / cols), Math.floor(s.count / cols));
+      const cut = rows * cols;
+      s.count -= cut;
+      over -= cut;
+    };
     const others = secs.filter(x => x.key !== key).sort((a,b) => b.count - a.count);
     for(const o of others){
       if(over <= 0) break;
-      const cut = Math.min(o.count, over);
-      o.count -= cut; over -= cut;
+      cutRows(o);
     }
     if(over > 0){
       const me = secs.find(x => x.key === key);
-      if(me) me.count = Math.max(0, me.count - over);
+      if(me) cutRows(me);
     }
+    secs.forEach(s => {
+      const cols = SEC_COLS[s.key] || 1;
+      s.count = Math.floor(s.count / cols) * cols;
+    });
     syncCountInputs();
   }
 
@@ -1542,9 +1679,13 @@
       return;
     }
     if(btn.dataset.act === 'inc' || btn.dataset.act === 'dec'){
-      const step = (e.shiftKey ? 5 : 1) * (btn.dataset.act === 'inc' ? 1 : -1);
-      s.count = Math.max(0, Math.min(100, s.count + step));
-      if(step > 0) rebalanceBudget(s.key);
+      const cols = SEC_COLS[s.key] || 1;
+      const rows = e.shiftKey ? 5 : 1;
+      const dir = btn.dataset.act === 'inc' ? 1 : -1;
+      const cap = Math.floor(100 / cols) * cols;          // 上限也落在整行
+      const base = Math.floor(s.count / cols) * cols;     // 先对齐到整行再加/减
+      s.count = Math.max(0, Math.min(cap, base + dir * rows * cols));
+      if(dir > 0) rebalanceBudget(s.key);
       syncCountInputs();
       updateBudget();
       render();
@@ -1557,7 +1698,7 @@
       const card = e.target.closest('.seccard');
       const sec = state.sections.find(x => x.key === card.dataset.key);
       if(sec){
-        sec.N = Math.max(2, Math.min(999, parseInt(e.target.value) || 2));
+        sec.N = Math.max(2, Math.min(99, parseInt(e.target.value) || 2));
         render();
       }
       return;
@@ -1583,7 +1724,7 @@
     const num = card.querySelector('.secnum');
     if(sel.value === 'custom'){
       num.classList.remove('hide');
-      sec.N = Math.max(2, Math.min(999, parseInt(num.value) || 30));
+      sec.N = Math.max(2, Math.min(99, parseInt(num.value) || 30));
       num.focus(); num.select();
     } else {
       sec.N = +sel.value;
@@ -1643,49 +1784,64 @@
   /* ================= 直接导出 PDF（不走打印对话框） =================
      思路：把每张 A4 用 SVG foreignObject 交给浏览器自己排版渲染 → 画到 300dpi 画布
            → 编码为 JPEG → 用最小 PDF 结构（每页一个图片 XObject）封装 → 触发下载。 */
-  const PDF_SCALE = 3.125;          // 96dpi × 3.125 = 300dpi
+  const PDF_SCALE = 3.125;          // 96dpi × 3.125 = 300dpi（A4 印刷标准清晰度）
 
-  async function pageToJpeg(el, scale){
+  async function pageToJpeg(el, scale, css, cv, ctx2, check){
     // 用渲染时记录的自然尺寸：手机端预览会整体缩放，rect/offsetWidth 都会带上系数
     const w = Math.round(+el.dataset.w || el.offsetWidth);
     const h = Math.round(+el.dataset.h || el.offsetHeight);
-    const css = [...document.querySelectorAll('style')].map(n => n.textContent).join('\n');
+    const cw = Math.round(w * scale), ch = Math.round(h * scale);
     const clone = el.cloneNode(true);
     clone.classList.remove('off-page');
     clone.style.margin = '0';
     clone.style.boxShadow = 'none';
     const html = '<div xmlns="http://www.w3.org/1999/xhtml" style="margin:0;padding:0;background:#fff;width:' + w + 'px;height:' + h + 'px">'
       + '<style>' + css + '</style>' + clone.outerHTML + '</div>';
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(w * scale) + '" height="' + Math.round(h * scale) +
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + ch +
       '" viewBox="0 0 ' + w + ' ' + h + '"><foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + html + '</foreignObject></svg>';
 
+    // Blob URL 比 data:image/svg+xml + encodeURIComponent 快很多，SVG 越大差距越明显
+    const url = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml;charset=utf-8' }));
     const img = new Image();
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-    if(img.decode) await img.decode();
-    else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    try{
+      img.src = url;
+      if(img.decode) await img.decode();
+      else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
 
-    const cv = document.createElement('canvas');
-    cv.width = Math.round(w * scale);
-    cv.height = Math.round(h * scale);
-    const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      if(!cv) cv = document.createElement('canvas');
+      if(cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; }
+      ctx2 = cv.getContext('2d', { alpha:false });
+      ctx2.fillStyle = '#fff';
+      ctx2.fillRect(0, 0, cw, ch);
+      ctx2.drawImage(img, 0, 0, cw, ch);
 
-    // 保底：抽查标题区域，若整片纯白说明该浏览器不渲染 foreignObject（如 Firefox）
-    const strip = ctx.getImageData(0, 0, cv.width, Math.min(300, cv.height)).data;
-    let ink = 0;
-    for(let i = 0; i < strip.length; i += 4 * 97){
-      if(strip[i] < 240 || strip[i+1] < 240 || strip[i+2] < 240){ ink++; if(ink > 20) break; }
+      // 只在第一页抽查：整片纯白说明浏览器不渲染 foreignObject（如 Firefox）
+      if(check){
+        const strip = ctx2.getImageData(0, 0, cw, Math.min(300, ch)).data;
+        let ink = 0;
+        for(let i = 0; i < strip.length; i += 4 * 97){
+          if(strip[i] < 240 || strip[i+1] < 240 || strip[i+2] < 240){ ink++; if(ink > 20) break; }
+        }
+        if(ink <= 20) throw new Error('当前浏览器未能渲染页面（建议用 Chrome / Edge 打开本文件）');
+      }
+
+      // toBlob 异步编码，避免 toDataURL + atob 产生的大字符串同步开销
+      const jpg = await new Promise((res, rej) => {
+        if(cv.toBlob) cv.toBlob(b => b ? res(b) : rej(new Error('画布编码失败')), 'image/jpeg', 0.88);
+        else {
+          try{
+            const b64 = cv.toDataURL('image/jpeg', 0.88).split(',')[1];
+            const bin = atob(b64);
+            const arr = new Uint8Array(bin.length);
+            for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            res(new Blob([arr]));
+          }catch(e){ rej(e); }
+        }
+      });
+      return { bytes: new Uint8Array(await jpg.arrayBuffer()), w: cw, h: ch };
+    }finally{
+      URL.revokeObjectURL(url);
     }
-    if(ink <= 20) throw new Error('当前浏览器未能渲染页面（建议用 Chrome / Edge 打开本文件）');
-
-    const b64 = cv.toDataURL('image/jpeg', 0.86).split(',')[1];
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    cv.width = cv.height = 0;             // 及时释放画布内存
-    return { bytes, w: Math.round(w * scale), h: Math.round(h * scale) };
   }
 
   function buildPDF(pages){
@@ -1750,12 +1906,19 @@
         emptyCase = true;
         throw new Error('还没有题目：请先在左侧启用章节，并把题量设到 1 以上');
       }
+      const css = [...document.querySelectorAll('style')].map(n => n.textContent).join('\n');
+      const first = nodes[0];
+      const cv = document.createElement('canvas');
+      cv.width = Math.round((+first.dataset.w || first.offsetWidth) * PDF_SCALE);
+      cv.height = Math.round((+first.dataset.h || first.offsetHeight) * PDF_SCALE);
+      const ctx = cv.getContext('2d', { alpha:false });
       const pages = [];
       for(let i = 0; i < nodes.length; i++){
         btn.textContent = '生成中 ' + (i + 1) + '/' + nodes.length;
         await new Promise(r => setTimeout(r, 20));
-        pages.push(await pageToJpeg(nodes[i], PDF_SCALE));
+        pages.push(await pageToJpeg(nodes[i], PDF_SCALE, css, cv, ctx, i === 0));
       }
+      cv.width = cv.height = 0;          // 释放画布内存
       btn.textContent = '写入文件…';
       await new Promise(r => setTimeout(r, 20));
       const blob = buildPDF(pages);
@@ -1834,22 +1997,41 @@
     }).join('');
   }
 
-  function itemHTML(it, fill){
+  const calcOp = (x, op, y) => op === '+' ? x + y : op === '-' ? x - y : op === '*' ? x * y : x / y;
+
+  // 巩固题的三数两步：标出先算的区间和中间结果
+  function stepInfo(it){
+    const nums = it.L.toks.filter(t => t.t !== 'op').map(t => t.v);
+    const ops = it.L.toks.filter(t => t.t === 'op').map(t => t.v);
+    if(nums.length !== 3 || ops.length !== 2) return null;
+    const a = nums[0], b = nums[1], c = nums[2];
+    const o1 = ops[0], o2 = ops[1];
+    const high = o => o === '*' || o === '/';
+    if(!high(o1) && high(o2)){
+      return { mode:'right', m: calcOp(b, o2, c) };   // a ± (b ×/÷ c)
+    }
+    return { mode:'left', m: calcOp(a, o1, b) };      // 同级或左边先乘除
+  }
+
+  function itemHTML(it, fill, secKey){
     const mid = it.kind === 'compare'
       ? (fill
           ? '<i class="blk cmp filled">' + symSVG(it.ans) + '</i>'
           : '<i class="blk cmp"></i>')
       : '<span class="eql">' + (it.mid || '=') + '</span>';
-    return '<div class="q">'
+    const info = (fill && secKey === 'solid') ? stepInfo(it) : null;
+    const stepAttr = info ? ' data-step="' + info.mode + '" data-step-m="' + info.m + '"' : '';
+    return '<div class="q"' + stepAttr + '>'
          + '<span class="eq"><span class="side lhs">' + sideHTML(it.L, fill) + '</span>'
-         + mid + '<span class="side rhs">' + sideHTML(it.R, fill) + '</span></span></div>';
+         + mid + '<span class="side rhs">' + sideHTML(it.R, fill) + '</span></span>'
+         + '</div>';
   }
 
   function tipOf(sec){
     if(sec.key === 'basic') return '在括号里填上合适的数';
     if(sec.key === 'solid') return sec.opBlank ? '在括号里填数、○ 里填运算符' : '在括号里填上合适的数';
     // extend
-    if(sec.compare) return '在 ○ 里填 ＞、＜ 或 ＝；已印符号的题自由填数';
+    if(sec.compare) return '○ 里填 ＞＜＝，括号填数、实线圆圈填运算符；已印符号的题自由填数';
     if(sec.opBlank) return '开放题：括号、○ 里自己设计填法，答案不唯一';
     return '在括号里填上合适的数';
   }
@@ -1862,7 +2044,7 @@
       + '<div class="sec-h">' + ROMAN[sec.key] + '、' + sec.name
       + '<span class="cnt">（共 ' + sec.items.length + ' 题）</span>'
       + '<span class="tip">' + tipOf(sec) + '</span></div>'
-      + '<div class="grid">' + sec.items.map(it => itemHTML(it, fill)).join('') + '</div>'
+      + '<div class="grid">' + sec.items.map(it => itemHTML(it, fill, sec.key)).join('') + '</div>'
       + '</div>';
   }
 
@@ -1881,6 +2063,88 @@
       +   '<span>种子 ' + cfg.seed + '　第 ' + (i + 1) + ' / ' + totalPages + ' 页</span>'
       + '</div>'
       + '</div>';
+  }
+
+  // 答案模式：在巩固题下方画出「先算哪两个数」的折线，并在括号下写中间结果
+  function drawSteps(){
+    const qs = pstackEl.querySelectorAll('.sec[data-key="solid"] .q[data-step]');
+    qs.forEach(q => {
+      q.querySelectorAll('.steplines,.step-m').forEach(n => n.remove());
+      const lhs = q.querySelector('.lhs'); if(!lhs) return;
+      const toks = [...lhs.children];
+      if(toks.length < 5 || !q.offsetWidth) return;
+      const mode = q.dataset.step;
+      const first = mode === 'right' ? 2 : 0;
+      const t1 = toks[first], t2 = toks[first + 2];
+      const target = toks[mode === 'right' ? 0 : 4];
+      if(!t1 || !t2 || !target) return;
+
+      const qr = q.getBoundingClientRect();
+      const k = qr.width / q.offsetWidth || 1;
+      const box = el => {
+        const r = el.getBoundingClientRect();
+        return {
+          left:(r.left - qr.left) / k, right:(r.right - qr.left) / k,
+          top:(r.top - qr.top) / k, bottom:(r.bottom - qr.top) / k
+        };
+      };
+      const p1 = box(t1), p2 = box(t2), pt = box(target);
+      const y = Math.max(p1.bottom, p2.bottom) + 1.2;
+      // 按题目下方剩余空间自适应：折线更深、中间结果更大，同时不撑破行高
+      const room = q.offsetHeight - y;
+      const depth = Math.max(4.5, Math.min(7.5, room * 0.25));
+      const fs = Math.max(12, Math.min(15.5, room * 0.5));
+      // 线和字之间多留一点，字整体往下放
+      const gap = Math.max(2.5, room - depth - fs * 1.2 - 1.5);
+      // 折线从两个数字各自的中心点向下，不包住整个数字宽度
+      const c1 = (p1.left + p1.right) / 2;
+      const c2 = (p2.left + p2.right) / 2;
+      const mx = (c1 + c2) / 2;
+      const labelY = y + depth + gap;
+      const labelMid = labelY + fs * 0.6;
+      const tx = (pt.left + pt.right) / 2;
+
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      // 导出 PDF 时这段 DOM 会被序列化进外层 SVG/XML：
+      // 必须显式带 xmlns，否则浏览器会把这段折线当成未知元素丢掉（文字是 HTML，所以能留下）
+      svg.setAttribute('xmlns', NS);
+      svg.setAttribute('class', 'steplines');
+      svg.setAttribute('width', q.offsetWidth);
+      svg.setAttribute('height', q.offsetHeight);
+      svg.setAttribute('viewBox', '0 0 ' + q.offsetWidth + ' ' + q.offsetHeight);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      q.appendChild(svg);
+
+      const lab = document.createElement('span');
+      lab.className = 'step-m';
+      lab.textContent = q.dataset.stepM;
+      lab.style.left = mx + 'px';
+      lab.style.top = labelY + 'px';
+      lab.style.fontSize = fs + 'px';
+      q.appendChild(lab);
+
+      // 连线从结果数字的边缘出发，避免穿过数字（打印时不依赖白色背景遮罩）
+      const half = Math.max(5, lab.offsetWidth / 2) + 4;
+      const sx = tx >= mx ? mx + half : mx - half;
+
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d',
+        'M ' + c1 + ' ' + y + ' V ' + (y + depth) + ' H ' + c2 + ' V ' + y +
+        ' M ' + sx + ' ' + labelMid + ' H ' + tx + ' V ' + (pt.bottom + 1));
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#64748b');
+      path.setAttribute('stroke-width', '0.8');
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path);
+      const ar = Math.max(4, Math.min(5.5, fs * 0.42));
+      const tri = document.createElementNS(NS, 'path');
+      tri.setAttribute('d', 'M ' + (tx - ar * 0.6) + ' ' + (pt.bottom + ar) +
+        ' L ' + tx + ' ' + (pt.bottom + 0.8) + ' L ' + (tx + ar * 0.6) + ' ' + (pt.bottom + ar));
+      tri.setAttribute('fill', '#64748b');
+      svg.appendChild(tri);
+    });
   }
 
   let lastPages = [];
@@ -2150,6 +2414,7 @@
     $('#barItems').textContent = totalItems;
 
     autoFit();
+    if(state.showAns) drawSteps();
     // 记下未缩放的尺寸：手机端与缩放都会让 rect/offsetWidth 带上系数
     [...pagesEl.querySelectorAll('.page')].forEach(pg => {
       pg.dataset.w = pg.offsetWidth;
@@ -2160,19 +2425,24 @@
     persistSettings();
   }
 
-  /* 自动排版：先定字号（横向不溢出），再把行高撑到刚好填满一页 */
+  /* 自动排版：先定字号（横向不溢出），再把行高撑到刚好填满一页。
+     三节共用一个基准行高，但巩固/拓展按倍数放大：孩子要在题目的上下空白里
+     画图、列竖式，巩固题的行高要比纯口算的基础题宽出一大截。 */
   function autoFit(){
     const pages = [...pagesEl.querySelectorAll('.page')];
     if(!pages.length) return;
-    // 每页 50 题：用 2 列，把横向空间让给字号（3 列时字号被最长算式卡在 13px）
+    // 列数由各节 CSS 决定（基础 5 列 / 巩固 3 列 / 拓展 2 列），--col 只作 .grid 的兜底
     const col = '88mm';
-    // 括号宽度按"答案最多几位"决定：20 以内→2 位，100 以内→3 位
+    // 括号宽度按"答案最多几位"决定：现在最大 99，统一按 2 位
     const dg = rangeDigits();
+    // 基础与拓展同为 1 倍行高；巩固 1.9 倍，多出的高度全部留给表达式下方画图
+    const ROW_MUL = { solid: 1.9 };
 
     const apply = (fs, row) => {
       pages.forEach(p => {
         p.style.setProperty('--fs', fs + 'px');
         p.style.setProperty('--row', row + 'mm');
+        p.style.setProperty('--row-solid', (row * ROW_MUL.solid).toFixed(2) + 'mm');
         p.style.setProperty('--col', col);
         p.style.setProperty('--dg', dg);
       });
@@ -2216,9 +2486,11 @@
     }
     apply(fs, Math.floor(row * 100) / 100);
 
-    // 2.5) 纵向约束：题量多时行高会被压扁，字必须跟着缩，否则行距挤成一团
+    // 2.5) 纵向约束：题量多时行高会被压扁，字必须跟着缩，否则行距挤成一团。
+    // 除数取 1.9（行高至少是字号的 1.9 倍）：基础题收紧符号间距后，横向搜索会
+    // 允许更大字号，这里把字号按住，保证每道题上下仍有呼吸空间。
     const rowPx = row * 96 / 25.4;
-    const fsByRow = Math.floor((rowPx / 1.6) * 4) / 4;
+    const fsByRow = Math.floor((rowPx / 1.9) * 4) / 4;
     if(fsByRow < fs){
       fs = Math.max(8, fsByRow);
       apply(fs, row);
@@ -2247,7 +2519,24 @@
 
     html += '<br>每张构成：' + parts;
     html += '<br>等式两侧不同时出现「单个数」：<b>已强制</b>';
-    if(dup > 0) html += '<br><span class="warn">当前数值范围可选组合有限，有 ' + dup + ' 题重复</span>';
+    if(dup > 0){
+      const basicSec = state.sections.find(x => x.key === 'basic');
+      let detail = '';
+      if(basicSec && basicSec.on && basicSec.count > 0){
+        const cap = basicCapacity(basicSec.N, basicSec.ops);
+        const bTotal = lastPages.reduce((a, p) => a + p.sections
+          .filter(s => s.key === 'basic')
+          .reduce((b, s) => b + s.items.length, 0), 0);
+        const bDup = countDupFor(lastPages, 'basic');
+        if(bDup > 0){
+          const safe = Math.floor(cap / basicSec.count);
+          detail = '基础题最多 ' + cap + ' 种题面，本卷需 ' + bTotal + ' 道，其中 ' + bDup +
+            ' 道重复；' + (safe > 0 ? '不重复最多 ' + safe + ' 页' : '每页基础题量已超过可组合数') + '。';
+        }
+      }
+      html += '<br><span class="warn">' + (detail || '当前数值范围可选组合有限，') +
+        '整卷共 ' + dup + ' 题重复。</span>';
+    }
     statBox.innerHTML = html;
 
     const pn = $('#pageNote');
@@ -2258,6 +2547,30 @@
   function countDup(pages){
     const seen = new Set(); let dup = 0;
     pages.forEach(p => p.sections.forEach(s => s.items.forEach(it => {
+      if(seen.has(it.key)) dup++; else seen.add(it.key);
+    })));
+    return dup;
+  }
+
+  // 基础节「a ± b = ( )」的理论题面数（含减法结果为 0 的题）
+  const basicCapCache = {};
+  function basicCapacity(N, ops){
+    const k = N + '|' + ops.slice().sort().join('');
+    if(basicCapCache[k] != null) return basicCapCache[k];
+    const set = new Set();
+    for(const op of ops){
+      for(let a = 1; a <= N; a++){
+        for(let b = 1; b <= N; b++){
+          if(Engine.evalExpr([a, b], [op], N) !== null) set.add(a + op + b);
+        }
+      }
+    }
+    return basicCapCache[k] = set.size;
+  }
+
+  function countDupFor(pages, key){
+    const seen = new Set(); let dup = 0;
+    pages.forEach(p => p.sections.filter(s => s.key === key).forEach(s => s.items.forEach(it => {
       if(seen.has(it.key)) dup++; else seen.add(it.key);
     })));
     return dup;
@@ -2278,6 +2591,7 @@
 
   /* ---------------- 本地存储：设置记忆 + 历史存档 ---------------- */
   const LS_SET = 'mathws.settings.v1', LS_ARC = 'mathws.archives.v1';
+  const LS_COUNTS = 'mathws.counts.v3';   // 默认题量升级标记：只迁移一次
   const SEC_KEYS = ['count','N','ops','maxL','maxR','randomN','mixed','opBlank','compare'];
   function lsRead(k, fb){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; }catch(e){ return fb; } }
   function lsWrite(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -2301,8 +2615,30 @@
       if(!cur) return;
       Object.keys(sv).forEach(k => { if(k !== 'key' && sv[k] !== undefined) cur[k] = sv[k]; });
     });
+    // 范围统一收口到两位数：旧存档里的 100 以内 → 99 以内
+    state.sections.forEach(x => {
+      if(!(x.N >= 2)) x.N = 20;
+      if(x.N > 99) x.N = 99;
+    });
     state.pageIdx = 0; state.zoom = 1;
     return true;
+  }
+
+  // 旧默认题量（76/18/6、80/12/8）→ 85/9/6：只在用户没改过题量时迁移一次，
+  // 之后手动改回的数值不会在刷新时被反复覆盖
+  function migrateDefaultCounts(o){
+    if(!o || !Array.isArray(o.sections)) return o;
+    try { if(localStorage.getItem(LS_COUNTS)) return o; } catch(e){}
+    const oldCounts = [
+      { basic:76, solid:18, extend:6 },
+      { basic:80, solid:12, extend:8 }
+    ];
+    const newCount = { basic:85, solid:9, extend:6 };
+    const isOldDefault = o.sections.length === 3 && oldCounts.some(d =>
+      o.sections.every(s => s && d[s.key] != null && (s.count | 0) === d[s.key]));
+    if(isOldDefault) o.sections.forEach(s => { s.count = newCount[s.key]; });
+    try { localStorage.setItem(LS_COUNTS, '1'); } catch(e){}
+    return o;
   }
 
   let saveTimer = null;
@@ -2470,7 +2806,7 @@
 
     if('pages' in q) state.pages = num(q.pages, 1, 1, 5);
     if('n'     in q){
-      const v = num(q.n, 20, 2, 999);
+      const v = num(q.n, 20, 2, 99);
       state.sections.forEach(x => { x.N = v; });
     }
     if('seed'  in q) state.seed = num(q.seed, 1, 0, 4294967295);
@@ -2495,8 +2831,8 @@
     syncControls();
   }
 
-  applySnapshot(lsRead(LS_SET, null));   // 先恢复上次的设置（localStorage）
-  applyQuery();                          // URL 参数优先级更高
+  applySnapshot(migrateDefaultCounts(lsRead(LS_SET, null)));   // 先恢复上次的设置（localStorage）
+  applyQuery();                          // URL 参数优先级更高（N 已在内部限制为 99）
   buildSecList();
   syncControls();
   renderArchives();
