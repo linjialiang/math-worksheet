@@ -13,42 +13,10 @@
  * 只会使用能识图的模型；配置里的纯文本模型会被忽略，全部无效时直接报错。
  */
 
-const DEFAULT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_MODELS = [
-  'qwen3-vl-plus',
-  'qwen3-vl-flash',
-  'qwen3-vl-8b-instruct',
-  'qwen-vl-plus',
-  'qwen-vl-max'
-];
+const { DEFAULT_BASE, readModels, supportsThinkingToggle } = require('./_models');
+
 const MAX_IMAGE_CHARS = 4_000_000;   // data URL 长度，约 3MB 图片
 const MAX_QUESTIONS = 120;
-
-// 只认能看图的模型：Qwen-VL / Qwen2-VL / Qwen2.5-VL / Qwen3-VL / QVQ / Omni。
-// 纯文本模型（qwen-plus、qwen-max、qwen-turbo 等）拿到图片只会报错或乱答，必须提前挡住。
-const VISION_MODEL_RE = /^(?:qwen[\d.]*-vl|qvq|qwen[\d.]*-omni)(?:-|$)/i;
-
-function isVisionModel(name) {
-  return VISION_MODEL_RE.test(String(name == null ? '' : name).trim());
-}
-
-function readModels() {
-  const configured = (process.env.QWEN_MODELS || process.env.QWEN_MODEL || '')
-    .split(',').map(s => s.trim()).filter(Boolean);
-  const source = configured.length ? configured : DEFAULT_MODELS;
-  const models = [];
-  const ignored = [];
-  source.forEach(raw => {
-    const name = String(raw == null ? '' : raw).trim();
-    if (!name) return;
-    if (!isVisionModel(name)) {
-      if (!ignored.includes(name)) ignored.push(name);
-      return;
-    }
-    if (!models.includes(name)) models.push(name);
-  });
-  return { models, ignored, configured: configured.length > 0 };
-}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -142,24 +110,26 @@ function modelPrompt(questions) {
 }
 
 function callModel(base, key, model, prompt, image, signal) {
+  const payload = {
+    model,
+    temperature: 0,
+    max_tokens: 6000,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: image } },
+        { type: 'text', text: prompt }
+      ]
+    }]
+  };
+  if (supportsThinkingToggle(model)) payload.enable_thinking = false;
   return fetch(base.replace(/\/$/, '') + '/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + key
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      max_tokens: 6000,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: image } },
-          { type: 'text', text: prompt }
-        ]
-      }]
-    }),
+    body: JSON.stringify(payload),
     signal
   });
 }
@@ -179,6 +149,47 @@ function isFallbackError(status, raw) {
   if (/allocationquota|freetieronly|insufficient_quota|rate.?limit|quota|arrears|free.?tier|exceeded|insufficient/i.test(s)) return true;
   if (status === 400 && /model|invalidparameter|not.?found/i.test(s)) return true;
   return false;
+}
+
+function failureInfo(last) {
+  if (!last) {
+    return {
+      error: '模型调用失败。',
+      detail: '请先点「检查连接」确认 Key 与模型是否可用。'
+    };
+  }
+  const at = last.model ? '（最后尝试：' + last.model + '）' : '';
+  const status = Number(last.status) || 0;
+  const detail = String(last.detail || '');
+  const quota = /allocationquota|freetieronly|insufficient_quota|rate.?limit|quota|arrears|free.?tier|exceeded|insufficient/i.test(detail);
+  if (status === 504 || /abort/i.test(detail)) {
+    return {
+      error: '模型响应超时' + at + '。',
+      detail: '照片可能过大或网络较慢，请重试；也可以先点「检查连接」确认模型是否连通。'
+    };
+  }
+  if (status === 401) {
+    return {
+      error: 'API Key 无效或与地域不匹配' + at + '（HTTP 401）。',
+      detail: '北京地域的 Key 只能调用北京域名；请核对 DASHSCOPE_API_KEY 与 DASHSCOPE_BASE_URL。'
+    };
+  }
+  if (status === 403 || status === 429 || quota) {
+    return {
+      error: '模型额度用完、限流或没有权限' + at + '。',
+      detail: '请在百炼控制台确认免费额度与模型授权，并开启「用完即停」；额度恢复后重试。'
+    };
+  }
+  if (status === 404 || /model.{0,24}(not|invalid|does not exist)/i.test(detail)) {
+    return {
+      error: '模型不可用或名称不正确' + at + '。',
+      detail: '请在百炼模型广场确认该模型在当前地域已开通，或改用 qwen3-vl-flash / qwen3-vl-plus。'
+    };
+  }
+  return {
+    error: '模型调用失败' + at + (status ? '（HTTP ' + status + '）' : '') + '。',
+    detail: detail || '请先点「检查连接」确认 Key 与模型是否可用。'
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -228,37 +239,46 @@ module.exports = async function handler(req, res) {
     : '';
   const prompt = modelPrompt(questions);
   const deadline = Date.now() + 55000;
+  const attempts = [];
   let answers = null;
   let usedModel = '';
   let lastErr = null;
+
+  function record(err) {
+    lastErr = err;
+    attempts.push(err);
+  }
 
   for (const model of models) {
     const remain = deadline - Date.now();
     if (remain < 3000) break;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.min(35000, Math.max(5000, remain)));
+    // 单模型最多 25 秒；超时就换下一个，避免前面的慢请求把总预算耗尽。
+    const timer = setTimeout(() => controller.abort(), Math.min(25000, Math.max(5000, remain)));
     let resp, raw;
     try {
       resp = await callModel(base, apiKey, model, prompt, image, controller.signal);
       raw = await resp.text();
     } catch (e) {
       clearTimeout(timer);
-      lastErr = {
+      record({
         model,
         status: e && e.name === 'AbortError' ? 504 : 502,
         detail: String(e && e.message || e).slice(0, 300)
-      };
+      });
       continue;
     }
     clearTimeout(timer);
 
     if (!resp.ok) {
       const detail = detailOf(raw);
-      lastErr = { model, status: resp.status, detail };
+      record({ model, status: resp.status, detail });
       if (isFallbackError(resp.status, raw)) continue;
-      return send(res, 502, {
-        error: '模型调用失败（HTTP ' + resp.status + '）。',
-        detail
+      const info = failureInfo(lastErr);
+      return send(res, resp.status === 401 ? 401 : 502, {
+        error: info.error,
+        detail: info.detail,
+        attempts
       });
     }
 
@@ -266,7 +286,7 @@ module.exports = async function handler(req, res) {
     try {
       payload = JSON.parse(raw);
     } catch (e) {
-      lastErr = { model, status: 502, detail: '模型返回的不是合法 JSON。' };
+      record({ model, status: 502, detail: '模型返回的不是合法 JSON。' });
       continue;
     }
 
@@ -278,11 +298,11 @@ module.exports = async function handler(req, res) {
       : [];
 
     if (!Array.isArray(found) || !found.length) {
-      lastErr = {
+      record({
         model,
         status: 502,
         detail: String(content || '').slice(0, 300) || '模型没有返回识别结果。'
-      };
+      });
       continue;
     }
 
@@ -292,10 +312,11 @@ module.exports = async function handler(req, res) {
   }
 
   if (!answers) {
-    const last = lastErr || {};
+    const info = failureInfo(lastErr);
     return send(res, 502, {
-      error: '模型调用失败' + (last.model ? '（最后尝试：' + last.model + '）' : '') + '，免费额度可能已用完或模型不可用。',
-      detail: last.detail || '请检查 Key、模型权限和免费额度。'
+      error: info.error,
+      detail: info.detail,
+      attempts
     });
   }
 
@@ -353,6 +374,7 @@ module.exports = async function handler(req, res) {
     model: usedModel,
     warning: warning || undefined,
     ignoredModels: ignored.length ? ignored : undefined,
+    attempts: attempts.length ? attempts : undefined,
     summary: {
       total: rows.length,
       gradable: rows.length - open,

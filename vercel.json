@@ -2,6 +2,9 @@
   "functions": {
     "api/grade.js": {
       "maxDuration": 60
+    },
+    "api/health.js": {
+      "maxDuration": 30
     }
   }
 }

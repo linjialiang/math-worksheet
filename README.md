@@ -9,12 +9,12 @@
 -   随机种子：同种子 + 同设置 = 完全相同的卷
 -   A4 打印 / 直接导出 PDF（300dpi）双通道
 -   题中直接显示答案（红色），导出答案卷文件名带「答案」
--   拍照批改：手机拍照上传，AI 读取手写答案，与标准答案比对，输出分数和错题表格（需 Vercel + 百炼 API Key）
+-   拍照批改：手机拍照上传，AI 读取手写答案，与标准答案比对，输出分数和错题表格（需 Vercel + 百炼 API Key；弹窗内可一键检查 Key 与模型连接）
 -   响应式：手机端单页预览、左右滑动翻页、双指捏合缩放、放大拖拽
 
 ## 拍照批改（可选）
 
-流程：拍照/上传 → 压缩 → 调 `/api/grade` 读取手写答案 → 与当前页标准答案比对 → 分数 + 错题表格。**不在照片上画标记，服务端不保存照片。**
+流程：拍照/上传 → 压缩 → 调 `/api/grade` 读取手写答案 → 与当前页标准答案比对 → 分数 + 错题表格。**不在照片上画标记，服务端不保存照片。** 部署后可点「检查连接」（`GET /api/health`）确认 Key 和视觉模型是否连通。
 
 ### 部署
 
@@ -22,7 +22,7 @@
 2. 将本仓库导入 Vercel，项目根目录无需构建命令；添加环境变量：
    - `DASHSCOPE_API_KEY`：百炼 API Key
    - `DASHSCOPE_BASE_URL`：可选，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-plus,qwen3-vl-flash,qwen3-vl-8b-instruct,qwen-vl-plus,qwen-vl-max`
+   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-flash,qwen3-vl-plus,qwen3-vl-8b-instruct,qwen-vl-plus,qwen-vl-max`
    - `QWEN_MODEL`：兼容旧配置，只填一个模型；`QWEN_MODELS` 非空时优先用列表
 3. 部署后打开 Vercel 地址，点「拍照批改」。
 
@@ -32,6 +32,24 @@
 > 免费额度按模型独立计算，后端会按 `QWEN_MODELS` 顺序自动切换：当前模型额度用完、限流或不可用时，自动试下一个。
 >
 > 只能填 **Qwen-VL / Qwen3-VL / QVQ** 等能看图的模型；纯文本模型不能批改。不要把 72 个模型全部填进去，只挑带视觉能力的几个。
+
+### 检查连接与排错
+
+批改弹窗底部有「检查连接」：它会对 `QWEN_MODELS` 里的每个视觉模型各发一次最小请求（“只回复 OK”，不传照片），返回 Key 是否有效、模型是否可用、额度状态和耗时。
+
+常见错误对照：
+
+| 提示 | 含义 | 处理 |
+| --- | --- | --- |
+| `This operation was aborted` / 模型响应超时 | 请求在 25 秒内没有返回，不是额度问题 | 重试；照片过大时换更小的照片；先点「检查连接」 |
+| HTTP 401 / Key 无效或与地域不匹配 | Key 与 `DASHSCOPE_BASE_URL` 的地域不同 | 北京 Key 只能调北京域名 `dashscope.aliyuncs.com` |
+| HTTP 429 / 403 | 免费额度用完、限流或模型未授权 | 百炼控制台查看额度与模型开通状态 |
+| HTTP 404 / 400（模型名） | 模型在当前地域不存在或名称不对 | 改用 `qwen3-vl-flash` / `qwen3-vl-plus` |
+| QVQ 报错 | QVQ 只支持流式输出 | 批改接口是非流式，请改用 Qwen3-VL |
+
+> 百炼 OpenAI 兼容端点不提供 `GET /models`，检查连接只能实际发一次最小对话请求；每次检查消耗的 token 很少。
+>
+> Qwen3-VL Plus / Flash 默认开启思考模式，批改请求已显式设置 `enable_thinking: false`，避免思考过程拖慢识别。
 
 > GitHub Pages 只能托管静态页，不能运行 `/api/grade`；拍照批改必须部署到 Vercel（或其他支持 Serverless Function 的平台）。
 >
