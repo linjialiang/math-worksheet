@@ -22,8 +22,13 @@
 2. 将本仓库导入 Vercel，项目根目录无需构建命令；添加环境变量：
    - `DASHSCOPE_API_KEY`：百炼 API Key
    - `DASHSCOPE_BASE_URL`：可选，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODEL`：可选，默认 `qwen3-vl-plus`
+   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-plus,qwen3-vl-flash,qwen3-vl-8b-instruct,qwen-vl-plus,qwen-vl-max`
+   - `QWEN_MODEL`：兼容旧配置，只填一个模型；`QWEN_MODELS` 非空时优先用列表
 3. 部署后打开 Vercel 地址，点「拍照批改」。
+
+> 免费额度按模型独立计算，后端会按 `QWEN_MODELS` 顺序自动切换：当前模型额度用完、限流或不可用时，自动试下一个。
+>
+> 只能填 **Qwen-VL / Qwen3-VL / QVQ** 等能看图的模型；纯文本模型不能批改。不要把 72 个模型全部填进去，只挑带视觉能力的几个。
 
 > GitHub Pages 只能托管静态页，不能运行 `/api/grade`；拍照批改必须部署到 Vercel（或其他支持 Serverless Function 的平台）。
 >
@@ -32,6 +37,7 @@
 ### 免费额度与费用
 
 -   通义千问 VL 新用户有 100 万 Token 免费额度，有效期 90 天；仅华北 2（北京）地域。
+-   免费额度按模型分别计算；不同 VL 模型各有独立额度，后端会按 `QWEN_MODELS` 顺序自动换下一个。
 -   请在百炼控制台开启「免费额度用完即停」，避免额度耗尽后自动按量扣费。
 -   额度到期/耗尽后，拍照批改会返回错误；生成、打印、导出 PDF 不受影响。
 -   照片会发送给阿里云百炼，请避开姓名、班级等个人信息；服务端只做转发，不落盘、不写日志。

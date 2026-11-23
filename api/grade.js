@@ -13,7 +13,13 @@
  */
 
 const DEFAULT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_MODEL = 'qwen3-vl-plus';
+const DEFAULT_MODELS = [
+  'qwen3-vl-plus',
+  'qwen3-vl-flash',
+  'qwen3-vl-8b-instruct',
+  'qwen-vl-plus',
+  'qwen-vl-max'
+];
 const MAX_IMAGE_CHARS = 4_000_000;   // data URL 长度，约 3MB 图片
 const MAX_QUESTIONS = 120;
 
@@ -131,6 +137,23 @@ function callModel(base, key, model, prompt, image, signal) {
   });
 }
 
+function detailOf(raw) {
+  let detail = String(raw || '').slice(0, 500);
+  try {
+    const j = JSON.parse(raw);
+    detail = (j.error && (j.error.message || j.error.code)) || j.message || detail;
+  } catch (e) {}
+  return String(detail);
+}
+
+function isFallbackError(status, raw) {
+  const s = String(raw || '').toLowerCase();
+  if (status === 429 || status === 403 || status === 404 || status === 408 || status === 504) return true;
+  if (/allocationquota|freetieronly|insufficient_quota|rate.?limit|quota|arrears|free.?tier|exceeded|insufficient/i.test(s)) return true;
+  if (status === 400 && /model|invalidparameter|not.?found/i.test(s)) return true;
+  return false;
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') {
@@ -165,54 +188,79 @@ module.exports = async function handler(req, res) {
   }
 
   const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const model = process.env.QWEN_MODEL || DEFAULT_MODEL;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 55000);
+  const configured = (process.env.QWEN_MODELS || process.env.QWEN_MODEL || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const models = configured.length ? configured : DEFAULT_MODELS;
+  const prompt = modelPrompt(questions);
+  const deadline = Date.now() + 55000;
+  let answers = null;
+  let usedModel = '';
+  let lastErr = null;
 
-  let resp;
-  try {
-    resp = await callModel(base, apiKey, model, modelPrompt(questions), image, controller.signal);
-  } catch (e) {
-    clearTimeout(timer);
-    const aborted = e && e.name === 'AbortError';
-    return send(res, aborted ? 504 : 502, {
-      error: aborted ? '模型请求超时，请重试。' : '模型请求失败，请检查网络和 Key。',
-      detail: aborted ? undefined : String(e && e.message || e).slice(0, 300)
-    });
-  }
-  clearTimeout(timer);
-
-  const raw = await resp.text();
-  if (!resp.ok) {
-    let detail = raw.slice(0, 500);
+  for (const model of models) {
+    const remain = deadline - Date.now();
+    if (remain < 3000) break;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.min(35000, Math.max(5000, remain)));
+    let resp, raw;
     try {
-      const j = JSON.parse(raw);
-      detail = (j.error && (j.error.message || j.error.code)) || j.message || detail;
-    } catch (e) {}
-    return send(res, 502, {
-      error: '模型调用失败（HTTP ' + resp.status + '）。',
-      detail: String(detail)
-    });
+      resp = await callModel(base, apiKey, model, prompt, image, controller.signal);
+      raw = await resp.text();
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = {
+        model,
+        status: e && e.name === 'AbortError' ? 504 : 502,
+        detail: String(e && e.message || e).slice(0, 300)
+      };
+      continue;
+    }
+    clearTimeout(timer);
+
+    if (!resp.ok) {
+      const detail = detailOf(raw);
+      lastErr = { model, status: resp.status, detail };
+      if (isFallbackError(resp.status, raw)) continue;
+      return send(res, 502, {
+        error: '模型调用失败（HTTP ' + resp.status + '）。',
+        detail
+      });
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (e) {
+      lastErr = { model, status: 502, detail: '模型返回的不是合法 JSON。' };
+      continue;
+    }
+
+    const content = payload && payload.choices && payload.choices[0] &&
+      payload.choices[0].message && payload.choices[0].message.content;
+    const parsed = parseJson(content);
+    const found = parsed
+      ? (Array.isArray(parsed) ? parsed : (parsed.answers || parsed.data || []))
+      : [];
+
+    if (!Array.isArray(found) || !found.length) {
+      lastErr = {
+        model,
+        status: 502,
+        detail: String(content || '').slice(0, 300) || '模型没有返回识别结果。'
+      };
+      continue;
+    }
+
+    answers = found;
+    usedModel = model;
+    break;
   }
 
-  let payload;
-  try {
-    payload = JSON.parse(raw);
-  } catch (e) {
-    return send(res, 502, { error: '模型返回的不是合法 JSON。' });
-  }
-
-  const content = payload && payload.choices && payload.choices[0] &&
-    payload.choices[0].message && payload.choices[0].message.content;
-  const parsed = parseJson(content);
-  const answers = parsed
-    ? (Array.isArray(parsed) ? parsed : (parsed.answers || parsed.data || []))
-    : [];
-
-  if (!Array.isArray(answers) || !answers.length) {
+  if (!answers) {
+    const last = lastErr || {};
     return send(res, 502, {
-      error: '模型没有返回可用的识别结果。',
-      detail: String(content || '').slice(0, 300)
+      error: '模型调用失败' + (last.model ? '（最后尝试：' + last.model + '）' : '') + '，免费额度可能已用完或模型不可用。',
+      detail: last.detail || '请检查 Key、模型权限和免费额度。'
     });
   }
 
@@ -267,6 +315,7 @@ module.exports = async function handler(req, res) {
 
   return send(res, 200, {
     ok: true,
+    model: usedModel,
     summary: {
       total: rows.length,
       gradable: rows.length - open,
