@@ -1,2 +1,5 @@
 .vercel
 .opencode/
+.env
+.env.local
+.env.*.local

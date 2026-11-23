@@ -259,6 +259,74 @@
   .btn.primary{background:#1d4ed8;color:#fff;box-shadow:0 1px 3px rgba(29,78,216,.3)}
   .btn.primary:hover{background:#1a45c0}
 
+  /* ---------------- 拍照批改 ---------------- */
+  .gradebtn{width:100%;flex:0 0 auto;padding:10px 14px;background:#eaf1ff;color:#1d4ed8}
+  .gradebtn:hover{background:#dfe9ff}
+  .grade-box{width:min(760px,94vw);max-height:min(88vh,900px);display:flex;flex-direction:column}
+  .grade-box .modal-bd{flex:1 1 auto;min-height:0;overflow:auto;padding:13px 16px 12px}
+  .grade-shot{
+    border:1px dashed #c4d4ec;border-radius:10px;background:#f7faff;
+    padding:10px;margin-bottom:11px;
+  }
+  .grade-pick{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+    min-height:112px;border:0;border-radius:8px;background:transparent;color:#3a5ccc;
+    font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .grade-pick:hover{background:#eef5ff}
+  .grade-pick .ic{font-size:24px;line-height:1}
+  .grade-preview{
+    display:none;width:100%;max-height:260px;object-fit:contain;
+    border-radius:8px;background:#fff;
+  }
+  .grade-preview.show{display:block}
+  .grade-shot.has-img .grade-pick{min-height:34px;margin-top:8px;font-size:12px;color:#64748b}
+  .grade-shot.has-img .grade-pick .ic{font-size:16px}
+  .grade-note{font-size:11px;line-height:1.6;color:#94a3b8;margin:0 0 10px}
+  .grade-status{
+    display:none;margin:7px 0 2px;padding:9px 11px;border-radius:8px;
+    background:#f1f5f9;color:#475569;font-size:12px;line-height:1.5;
+  }
+  .grade-status.show{display:block}
+  .grade-status.err{background:#fff1f2;color:#be123c}
+  .gsum{
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 14px;
+    padding:11px 12px;margin-top:8px;border-radius:10px;background:#f8fafc;
+    border:1px solid #e6ebf2;font-size:12px;color:#64748b;
+  }
+  .gsum b{font-size:22px;color:#0f172a;font-variant-numeric:tabular-nums}
+  .gsum .ok{color:#15803d;font-weight:600}
+  .gsum .bad{color:#dc2626;font-weight:600}
+  .gsum .warn{color:#b45309;font-weight:600}
+  .gshow{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-size:12px;color:#64748b;cursor:pointer}
+  .gwrap{margin-top:9px;border:1px solid #e6ebf2;border-radius:9px;overflow:auto;max-height:360px}
+  .gtable{width:100%;border-collapse:collapse;font-size:12px;line-height:1.5}
+  .gtable th{
+    position:sticky;top:0;z-index:1;background:#f8fafc;color:#64748b;
+    font-weight:600;text-align:left;padding:7px 8px;border-bottom:1px solid #e6ebf2;white-space:nowrap;
+  }
+  .gtable td{padding:7px 8px;border-bottom:1px solid #eef1f6;vertical-align:top;color:#334155}
+  .gtable tr:last-child td{border-bottom:0}
+  .gtable .cno{width:42px;color:#94a3b8;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gtable .cex{min-width:140px;font-variant-numeric:tabular-nums}
+  .gtable .cans{white-space:nowrap}
+  .gtable .cst{white-space:nowrap}
+  .gtag{display:inline-block;padding:1px 6px;border-radius:999px;font-size:10.5px;font-weight:700;line-height:1.6}
+  .gtag.ok{background:#e8f7ee;color:#15803d}
+  .gtag.bad{background:#feecef;color:#be123c}
+  .gtag.warn{background:#fff4e5;color:#b45309}
+  .gtag.open{background:#eef2f7;color:#64748b}
+  .gtable tr.is-bad td{background:#fff8f9}
+  .gtable tr.is-warn td{background:#fffbf4}
+  .gempty{padding:14px;text-align:center;color:#94a3b8;font-size:12px}
+  @media (max-width:600px){
+    .grade-box{width:94vw;max-height:91vh}
+    .grade-box .modal-bd{padding:11px 12px 10px}
+    .gtable{font-size:11px}
+    .gtable th,.gtable td{padding:6px}
+    .gtable .cex{min-width:110px}
+  }
+
   /* ---------------- 右侧预览区 ---------------- */
   .stage{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
   .bar{
@@ -674,6 +742,7 @@
         <button class="btn primary" id="btnPdfSheet">导出PDF试卷</button>
         <button class="btn tint" id="btnPdfAns">导出PDF答案</button>
       </div>
+      <button class="btn gradebtn" id="btnGrade">拍照批改</button>
     </div>
   </aside>
 
@@ -683,6 +752,7 @@
       <button class="mbtn" id="mPrint">打印</button>
       <button class="mbtn primary" id="mPdfSheet">导出试卷</button>
       <button class="mbtn tint" id="mPdfAns">导出答案</button>
+      <button class="mbtn sw" id="mGrade">批改</button>
     </div>
     <div class="bar">
       <span class="dot"></span>
@@ -1407,6 +1477,36 @@
     </div>
     <div class="modal-ft">
       <button class="btn ghost" id="archClose">关闭</button>
+    </div>
+  </div>
+</div>
+<div class="modal hide" id="gradeModal">
+  <div class="modal-mask" id="gradeMask"></div>
+  <div class="modal-box grade-box">
+    <div class="modal-hd"><span>拍照批改</span><span class="arch-hint">AI 识别手写答案，输出错题表格</span></div>
+    <div class="modal-bd">
+      <div class="grade-shot" id="gradeShot">
+        <img class="grade-preview" id="gradePreview" alt="待批改试卷照片">
+        <input id="gradeFile" type="file" accept="image/*" capture="environment" hidden>
+        <button class="grade-pick" id="gradePick" type="button">
+          <span class="ic" aria-hidden="true">＋</span>
+          <span id="gradePickText">拍照或选择试卷照片</span>
+        </button>
+      </div>
+      <div class="mrow">
+        <span class="rl">批改页码</span>
+        <select class="sel sm" id="gradePage"></select>
+      </div>
+      <p class="grade-note">
+        使用通义千问 VL 新人免费额度（100 万 Token / 90 天）；请在百炼控制台开启“用完即停”避免扣费。
+        照片仅用于本次识别，服务端不保存；请拍孩子完成的试卷，不要拍答案卷，并避开姓名、班级。开放题只给参考答案，不自动判错。
+      </p>
+      <div class="grade-status" id="gradeStatus"></div>
+      <div id="gradeResult"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn ghost" id="gradeClose" type="button">关闭</button>
+      <button class="btn primary" id="gradeStart" type="button">开始批改</button>
     </div>
   </div>
 </div>
@@ -2162,6 +2262,282 @@
   }
 
   let lastPages = [];
+
+  /* ---------------- 拍照批改：AI 识别手写 + 本地答案比对 ---------------- */
+  const GR_MAX_SIDE = 2800;
+  const gradeState = { file:null, previewUrl:'', result:null, showAll:false, busy:false };
+
+  function gradeSideText(side, fill){
+    return side.toks.map(t => {
+      if(t.blank) return fill ? (t.t === 'op' ? (SYM[t.v] || t.v) : String(t.v)) : (t.t === 'op' ? '○' : '( )');
+      return t.t === 'op' ? (SYM[t.v] || t.v) : String(t.v);
+    }).join(' ');
+  }
+
+  function gradeExpr(it, fill){
+    const mid = it.kind === 'compare' ? (fill ? (SYM[it.ans] || it.ans) : '○') : '=';
+    return gradeSideText(it.L, fill) + ' ' + mid + ' ' + gradeSideText(it.R, fill);
+  }
+
+  function gradeBlanks(it){
+    const arr = [];
+    [it.L, it.R].forEach(side => (side && side.toks || []).forEach(t => {
+      if(t.blank) arr.push({ kind:t.t === 'op' ? 'op' : 'num', correct:String(t.v) });
+    }));
+    if(it.kind === 'compare'){
+      arr.push({ kind:'cmp', correct:String(it.ans) });
+    } else if(it.kind === 'operator' && !arr.some(b => b.kind === 'op')){
+      arr.push({ kind:'op', correct:String(it.ans) });
+    }
+    return arr;
+  }
+
+  function buildGradeKey(pageIdx){
+    const page = lastPages[pageIdx];
+    if(!page || !page.sections) return [];
+    const out = [];
+    page.sections.forEach(sec => {
+      sec.items.forEach((it, i) => {
+        const open = it.ans === '开放' || it.kind === 'create';
+        out.push({
+          no: it.no || (out.length + 1),
+          section: sec.name,
+          expr: gradeExpr(it, false),
+          answer: gradeExpr(it, true),
+          blanks: gradeBlanks(it),
+          open
+        });
+      });
+    });
+    return out;
+  }
+
+  function showGradeStatus(text, err){
+    const el = $('#gradeStatus');
+    if(!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('show', !!text);
+    el.classList.toggle('err', !!err);
+  }
+
+  function openGrade(){
+    const modal = $('#gradeModal');
+    if(!modal) return;
+    gradeState.result = null;
+    gradeState.showAll = false;
+    $('#gradeResult').innerHTML = '';
+    showGradeStatus('');
+    const sel = $('#gradePage');
+    if(lastPages.length){
+      sel.innerHTML = lastPages.map((p, i) => '<option value="' + i + '">第 ' + (i + 1) + ' 页</option>').join('');
+      sel.value = String(Math.max(0, Math.min(state.pageIdx, lastPages.length - 1)));
+    } else {
+      sel.innerHTML = '';
+    }
+    modal.classList.remove('hide');
+    document.body.classList.add('lock');
+    if(!lastPages.length) showGradeStatus('当前还没有题目，请先设置章节与题量。', true);
+    setTimeout(() => { const p = $('#gradePick'); if(p) p.focus(); }, 0);
+  }
+
+  function closeGrade(){
+    const modal = $('#gradeModal');
+    if(!modal) return;
+    modal.classList.add('hide');
+    document.body.classList.remove('lock');
+  }
+
+  function loadGradeImage(file){
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('照片无法读取，请换一张 JPG/PNG 照片。')); };
+      img.src = url;
+    });
+  }
+
+  async function compressGradeImage(file){
+    const img = await loadGradeImage(file);
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if(!w || !h) throw new Error('照片尺寸异常，请重新拍摄。');
+    const scale = Math.min(1, GR_MAX_SIDE / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    let out = cv.toDataURL('image/jpeg', 0.85);
+    // Vercel 请求体约 4.5MB；过大时再降一档，避免上传被平台直接拒绝
+    if(out.length > 3_800_000){
+      const cw2 = Math.max(1, Math.round(cw * 0.8));
+      const ch2 = Math.max(1, Math.round(ch * 0.8));
+      const cv2 = document.createElement('canvas');
+      cv2.width = cw2; cv2.height = ch2;
+      const ctx2 = cv2.getContext('2d');
+      ctx2.fillStyle = '#fff';
+      ctx2.fillRect(0, 0, cw2, ch2);
+      ctx2.drawImage(cv, 0, 0, cw2, ch2);
+      out = cv2.toDataURL('image/jpeg', 0.78);
+    }
+    return out;
+  }
+
+  function setGradeFile(file){
+    if(!file) return;
+    if(!/^image\//.test(file.type || '')){
+      showGradeStatus('请选择图片文件。', true);
+      return;
+    }
+    if(gradeState.previewUrl) URL.revokeObjectURL(gradeState.previewUrl);
+    gradeState.file = file;
+    gradeState.previewUrl = URL.createObjectURL(file);
+    gradeState.result = null;
+    $('#gradePreview').src = gradeState.previewUrl;
+    $('#gradePreview').classList.add('show');
+    $('#gradeShot').classList.add('has-img');
+    $('#gradePickText').textContent = '重新拍照或选择其他照片';
+    $('#gradeResult').innerHTML = '';
+    showGradeStatus('');
+  }
+
+  function gradeAnsText(arr, emptyText){
+    if(!arr || !arr.length) return emptyText || '（未识别）';
+    return arr.map(x => {
+      const s = String(x);
+      return s === '*' ? '×' : (s === '/' ? '÷' : s);
+    }).join(' / ');
+  }
+
+  function renderGradeResult(){
+    const data = gradeState.result;
+    const box = $('#gradeResult');
+    if(!data || !box) return;
+    const s = data.summary || {};
+    const rows = data.rows || [];
+    const shown = rows.filter(r => gradeState.showAll || r.status === 'wrong' || r.status === 'uncertain');
+
+    let html = '<div class="gsum">'
+      + '得分 <b>' + (s.accuracy == null ? 0 : s.accuracy) + '%</b>'
+      + '<span class="ok">正确 ' + (s.correct || 0) + '</span>'
+      + '<span class="bad">错误 ' + (s.wrong || 0) + '</span>'
+      + '<span class="warn">存疑 ' + (s.uncertain || 0) + '</span>'
+      + '<span>已判 ' + ((s.correct || 0) + (s.wrong || 0)) + ' 题</span>'
+      + '<span>开放题 ' + (s.open || 0) + ' 道未计分</span>'
+      + '</div>';
+
+    if(!shown.length){
+      html += '<div class="gempty">' + ((s.wrong || 0) + (s.uncertain || 0) ? '没有需要列出的错题。' : '没有发现错题。') + '</div>';
+    } else {
+      html += '<div class="gwrap"><table class="gtable"><thead><tr>'
+        + '<th>题号</th><th>题目</th><th>孩子答案</th><th>正确答案</th><th>判定</th>'
+        + '</tr></thead><tbody>';
+      shown.forEach(r => {
+        const st = r.status;
+        const tag = st === 'wrong' ? '<span class="gtag bad">错</span>'
+          : st === 'uncertain' ? '<span class="gtag warn">存疑</span>'
+          : st === 'open' ? '<span class="gtag open">开放</span>'
+          : '<span class="gtag ok">对</span>';
+        const trCls = st === 'wrong' ? ' class="is-bad"' : (st === 'uncertain' ? ' class="is-warn"' : '');
+        const correct = st === 'open' ? ('参考：' + gradeAnsText(r.correct)) : gradeAnsText(r.correct);
+        html += '<tr' + trCls + '>'
+          + '<td class="cno">' + esc(r.no == null ? '' : r.no) + '</td>'
+          + '<td class="cex">' + esc(r.expr || '') + '</td>'
+          + '<td class="cans">' + esc(gradeAnsText(r.student)) + '</td>'
+          + '<td class="cans">' + esc(correct) + '</td>'
+          + '<td class="cst">' + tag + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '<label class="gshow"><input type="checkbox" id="gradeShowAll"' + (gradeState.showAll ? ' checked' : '') + '> 显示全部题目（含答对与开放题）</label>';
+    box.innerHTML = html;
+    const cb = $('#gradeShowAll');
+    if(cb) cb.addEventListener('change', () => { gradeState.showAll = cb.checked; renderGradeResult(); });
+  }
+
+  async function startGrade(){
+    if(gradeState.busy) return;
+    if(!gradeState.file){ showGradeStatus('请先拍照或选择试卷照片。', true); return; }
+    const pageIdx = parseInt($('#gradePage').value, 10) || 0;
+    const questions = buildGradeKey(pageIdx);
+    if(!questions.length){ showGradeStatus('当前页没有可批改的题目。', true); return; }
+
+    const btn = $('#gradeStart');
+    gradeState.busy = true;
+    btn.disabled = true;
+    btn.textContent = '正在批改…';
+    $('#gradeResult').innerHTML = '';
+
+    try{
+      showGradeStatus('正在压缩照片…');
+      const image = await compressGradeImage(gradeState.file);
+      showGradeStatus('正在识别手写答案，请稍候（约 10～30 秒）…');
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000);
+      let res;
+      try{
+        res = await fetch('/api/grade', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            image,
+            questions,
+            meta:{ page:pageIdx + 1, seed:state.seed, title:state.title || autoTitle() }
+          }),
+          signal:ctrl.signal
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+      let data = null;
+      try{ data = await res.json(); }catch(e){}
+      if(!res.ok){
+        const reason = (data && (data.error || data.detail)) || ('批改接口失败（' + res.status + '）');
+        throw new Error(reason);
+      }
+      if(!data || !Array.isArray(data.rows)) throw new Error('批改接口返回格式异常。');
+      gradeState.result = data;
+      gradeState.showAll = false;
+      renderGradeResult();
+      showGradeStatus('');
+    }catch(err){
+      const msg = (err && err.name === 'AbortError')
+        ? '批改超时，请检查网络后重试。'
+        : ((err && err.message) || '批改失败。');
+      const hint = (/404|接口|Failed|fetch/i.test(msg))
+        ? ' 需要部署到 Vercel 并配置 DASHSCOPE_API_KEY。'
+        : '';
+      showGradeStatus(msg + hint, true);
+    }finally{
+      gradeState.busy = false;
+      btn.disabled = false;
+      btn.textContent = '开始批改';
+    }
+  }
+
+  $('#btnGrade').addEventListener('click', openGrade);
+  $('#mGrade').addEventListener('click', openGrade);
+  $('#gradeClose').addEventListener('click', closeGrade);
+  $('#gradeMask').addEventListener('click', closeGrade);
+  $('#gradePick').addEventListener('click', () => $('#gradeFile').click());
+  $('#gradeFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(f) setGradeFile(f);
+    e.target.value = '';
+  });
+  $('#gradeStart').addEventListener('click', startGrade);
+  $('#gradePage').addEventListener('change', () => {
+    if(gradeState.busy) return;
+    gradeState.result = null;
+    $('#gradeResult').innerHTML = '';
+    showGradeStatus('');
+  });
 
   /* ---------------- 手机端缩放/平移视图 ---------------- */
   let viewK = 1, viewTx = 0, viewTy = 0;
