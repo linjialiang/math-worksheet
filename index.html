@@ -332,7 +332,7 @@
     position:absolute;transform:translateX(-50%);z-index:2;
     display:inline-flex;align-items:center;justify-content:space-between;
     width:2.5em;height:1.36em;line-height:1;padding:0 .12em;
-    font-size:9px;font-weight:400;color:#64748b;
+    font-size:9px;font-weight:300;color:#64748b;
     background:#fff;font-variant-numeric:tabular-nums;
   }
   .step-m::before{content:"("}
@@ -357,7 +357,7 @@
     display:inline-flex;align-items:center;justify-content:space-between;
     width:calc(0.92em + var(--dg,1) * 0.8em);height:1.36em;
     border:0;background:transparent;flex:0 0 auto;
-    font-style:normal;color:#334155;letter-spacing:.02em;
+    font-style:normal;font-weight:300;color:#334155;letter-spacing:.02em;
   }
   .eq .blk::before{content:"("}
   .eq .blk::after{content:")"}
@@ -1820,48 +1820,47 @@
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + ch +
       '" viewBox="0 0 ' + w + ' ' + h + '"><foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + html + '</foreignObject></svg>';
 
-    // Blob URL 比 data:image/svg+xml + encodeURIComponent 快很多，SVG 越大差距越明显
-    const url = URL.createObjectURL(new Blob([svg], { type:'image/svg+xml;charset=utf-8' }));
+    // 用 data URI 加载 SVG。Blob URL 虽然更快，但 Chrome 在 file:// 或部分版本下
+    // 对带 foreignObject 的 Blob SVG 会解码失败/污染 canvas，导致无法导出。
     const img = new Image();
-    try{
-      img.src = url;
-      if(img.decode) await img.decode();
-      else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    if(img.decode) await img.decode();
+    else await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
 
-      if(!cv) cv = document.createElement('canvas');
-      if(cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; }
-      ctx2 = cv.getContext('2d', { alpha:false });
-      ctx2.fillStyle = '#fff';
-      ctx2.fillRect(0, 0, cw, ch);
-      ctx2.drawImage(img, 0, 0, cw, ch);
+    if(!cv) cv = document.createElement('canvas');
+    if(cv.width !== cw || cv.height !== ch){ cv.width = cw; cv.height = ch; }
+    ctx2 = cv.getContext('2d', { alpha:false });
+    ctx2.fillStyle = '#fff';
+    ctx2.fillRect(0, 0, cw, ch);
+    ctx2.drawImage(img, 0, 0, cw, ch);
 
-      // 只在第一页抽查：整片纯白说明浏览器不渲染 foreignObject（如 Firefox）
-      if(check){
-        const strip = ctx2.getImageData(0, 0, cw, Math.min(300, ch)).data;
-        let ink = 0;
-        for(let i = 0; i < strip.length; i += 4 * 97){
-          if(strip[i] < 240 || strip[i+1] < 240 || strip[i+2] < 240){ ink++; if(ink > 20) break; }
-        }
-        if(ink <= 20) throw new Error('当前浏览器未能渲染页面（建议用 Chrome / Edge 打开本文件）');
+    // 只在第一页抽查：整片纯白说明浏览器不渲染 foreignObject（如 Firefox）
+    if(check){
+      const strip = ctx2.getImageData(0, 0, cw, Math.min(300, ch)).data;
+      let ink = 0;
+      for(let i = 0; i < strip.length; i += 4 * 97){
+        if(strip[i] < 240 || strip[i+1] < 240 || strip[i+2] < 240){ ink++; if(ink > 20) break; }
       }
-
-      // toBlob 异步编码，避免 toDataURL + atob 产生的大字符串同步开销
-      const jpg = await new Promise((res, rej) => {
-        if(cv.toBlob) cv.toBlob(b => b ? res(b) : rej(new Error('画布编码失败')), 'image/jpeg', 0.88);
-        else {
-          try{
-            const b64 = cv.toDataURL('image/jpeg', 0.88).split(',')[1];
-            const bin = atob(b64);
-            const arr = new Uint8Array(bin.length);
-            for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-            res(new Blob([arr]));
-          }catch(e){ rej(e); }
-        }
-      });
-      return { bytes: new Uint8Array(await jpg.arrayBuffer()), w: cw, h: ch };
-    }finally{
-      URL.revokeObjectURL(url);
+      if(ink <= 20) throw new Error('当前浏览器未能渲染页面（建议用 Chrome / Edge 打开本文件）');
     }
+
+    // toBlob 异步编码；失败时退回 toDataURL，兼容性优先
+    const jpg = await new Promise((res, rej) => {
+      const fallback = () => {
+        try{
+          const b64 = cv.toDataURL('image/jpeg', 0.88).split(',')[1];
+          const bin = atob(b64);
+          const arr = new Uint8Array(bin.length);
+          for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          res(new Blob([arr], { type:'image/jpeg' }));
+        }catch(e){ rej(e); }
+      };
+      if(cv.toBlob){
+        try { cv.toBlob(b => b ? res(b) : fallback(), 'image/jpeg', 0.88); }
+        catch(e){ fallback(); }
+      } else fallback();
+    });
+    return { bytes: new Uint8Array(await jpg.arrayBuffer()), w: cw, h: ch };
   }
 
   function buildPDF(pages){
@@ -2146,10 +2145,9 @@
       lab.style.fontSize = fs + 'px';
       q.appendChild(lab);
 
-      // 连线从结果数字的边缘出发，避免穿过数字（打印时不依赖白色背景遮罩）
+      // 保留“中间结果 → 第三个数字”的连线，只去掉箭头
       const half = Math.max(5, lab.offsetWidth / 2) + 4;
       const sx = tx >= mx ? mx + half : mx - half;
-
       const path = document.createElementNS(NS, 'path');
       path.setAttribute('d',
         'M ' + c1 + ' ' + y + ' V ' + (y + depth) + ' H ' + c2 + ' V ' + y +
@@ -2160,12 +2158,6 @@
       path.setAttribute('stroke-linecap', 'round');
       path.setAttribute('stroke-linejoin', 'round');
       svg.appendChild(path);
-      const ar = Math.max(4, Math.min(5.5, fs * 0.42));
-      const tri = document.createElementNS(NS, 'path');
-      tri.setAttribute('d', 'M ' + (tx - ar * 0.6) + ' ' + (pt.bottom + ar) +
-        ' L ' + tx + ' ' + (pt.bottom + 0.8) + ' L ' + (tx + ar * 0.6) + ' ' + (pt.bottom + ar));
-      tri.setAttribute('fill', '#64748b');
-      svg.appendChild(tri);
     });
   }
 
