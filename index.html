@@ -260,6 +260,44 @@
   .btn.primary:hover{background:#1a45c0}
 
   /* ---------------- 拍照批改 ---------------- */
+  .model-btn{
+    flex:1 1 auto;min-width:0;text-align:left;padding-right:10px;background-image:none;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .model-panel{display:none;margin:-2px 0 11px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;overflow:hidden}
+  .model-panel.show{display:block}
+  .model-search{width:100%;height:34px;border:0;border-bottom:1px solid #eef2f7;padding:0 12px;font-size:12.5px;outline:none;color:#1e293b;background:#fff}
+  .model-hint{padding:7px 12px;font-size:10.5px;line-height:1.5;color:#94a3b8;background:#fbfcfe;border-bottom:1px solid #f1f5f9}
+  .model-list{max-height:240px;overflow:auto;overscroll-behavior:contain}
+  .model-item{
+    display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;background:#fff;
+    border:0;border-bottom:1px solid #f1f5f9;text-align:left;cursor:pointer;
+    font-size:12.5px;color:#1e293b;font-family:inherit;
+  }
+  .model-item:last-child{border-bottom:0}
+  .model-item:hover{background:#f6f9ff}
+  .model-item.active{background:#eef5ff}
+  .model-item.no{opacity:.62}
+  .model-left{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0}
+  .model-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .model-note{font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .model-tags{display:flex;gap:4px;margin-left:auto;flex:0 0 auto}
+  .mtag{font-size:10px;line-height:18px;padding:0 5px;border-radius:4px;background:#f1f5f9;color:#64748b;white-space:nowrap}
+  .mtag.img{background:#e8f0ff;color:#1d4ed8}
+  .mtag.vid{background:#eef2ff;color:#3730a3}
+  .mtag.ocr{background:#fff7e6;color:#b45309}
+  .mtag.no{background:#fff1f2;color:#be123c}
+  .model-more{padding:8px 12px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;cursor:pointer}
+  .model-custom{display:flex;gap:6px;padding:8px;border-top:1px solid #f1f5f9;background:#fbfcfe}
+  .model-custom input{
+    flex:1 1 auto;min-width:0;height:30px;border:1px solid #dce3ec;border-radius:7px;
+    padding:0 9px;font-size:12px;outline:none;color:#1e293b;
+  }
+  .model-custom input:focus{border-color:#2f6fed;box-shadow:0 0 0 3px rgba(47,111,237,.14)}
+  .model-custom button{
+    flex:0 0 auto;height:30px;padding:0 11px;border:0;border-radius:7px;
+    background:#1d4ed8;color:#fff;font-size:12px;cursor:pointer;
+  }
   .gradebtn{width:100%;flex:0 0 auto;padding:10px 14px;background:#eaf1ff;color:#1d4ed8}
   .gradebtn:hover{background:#dfe9ff}
   .grade-box{width:min(760px,94vw);max-height:min(88vh,900px);display:flex;flex-direction:column}
@@ -1498,8 +1536,26 @@
         <span class="rl">批改页码</span>
         <select class="sel sm" id="gradePage"></select>
       </div>
+      <div class="mrow">
+        <span class="rl">识别模型</span>
+        <button class="sel model-btn" id="gradeModelBtn" type="button">自动选择（推荐）</button>
+      </div>
+      <div class="model-panel" id="gradeModelPanel">
+        <button class="model-item" id="gradeModelAuto" type="button">
+          <span class="model-left"><span class="model-name">自动选择（推荐）</span><span class="model-note">按额度顺序自动轮换</span></span>
+          <span class="model-tags"><span class="mtag">自动</span></span>
+        </button>
+        <input class="model-search" id="gradeModelSearch" type="search" placeholder="搜索模型，如 qwen / kimi / deepseek" autocomplete="off">
+        <div class="model-hint">已收录的北京免费额度模型；标签为输入类型，最终以百炼控制台为准</div>
+        <div class="model-list" id="gradeModelList"></div>
+        <div class="model-more" id="gradeModelMore" hidden>向下滚动加载更多</div>
+        <div class="model-custom">
+          <input id="gradeModelCustom" type="text" placeholder="列表没有？输入模型 ID" autocomplete="off">
+          <button id="gradeModelUse" type="button">使用</button>
+        </div>
+      </div>
       <p class="grade-note">
-        使用通义千问视觉模型（Qwen3-VL / Qwen3.5+ 系列）识别手写，纯文本模型不能批改；新人免费额度 100 万 Token / 90 天，请在百炼控制台开启“用完即停”避免扣费。
+        使用支持图片输入的视觉模型（Qwen3-VL、Qwen3.5+/Qwen4+、Kimi、DeepSeek 多模态）识别手写，纯文本模型不能批改；新人免费额度 100 万 Token / 90 天，请在百炼控制台开启“用完即停”避免扣费。
         照片仅用于本次识别，服务端不保存；请拍孩子完成的试卷，不要拍答案卷，并避开姓名、班级。开放题只给参考答案，不自动判错。
       </p>
       <div class="grade-status" id="gradeStatus"></div>
@@ -2267,7 +2323,123 @@
 
   /* ---------------- 拍照批改：AI 识别手写 + 本地答案比对 ---------------- */
   const GR_MAX_SIDE = 2800;
-  const gradeState = { file:null, previewUrl:'', result:null, showAll:false, busy:false, checking:false };
+  const gradeState = { file:null, previewUrl:'', result:null, showAll:false, busy:false, checking:false, model:'' };
+
+  /* ---------------- 识别模型目录：搜索 + 分页懒加载 ---------------- */
+  const MODEL_FALLBACK = [
+    { id:'qwen3.8-flash', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true },
+    { id:'deepseek-v4.1-flash', family:'DeepSeek', input:['text','image'], output:['text'], quota:true, gradable:true },
+    { id:'qwen4-max', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true }
+  ];
+  const MODEL_PAGE_SIZE = 12;
+  const modelState = { all:[], filtered:[], shown:0, loaded:false, loading:false };
+
+  function modelTags(m){
+    const tags = [];
+    const input = Array.isArray(m.input) ? m.input : [];
+    if(input.includes('image')) tags.push(['图片','img']);
+    if(input.includes('video')) tags.push(['视频','vid']);
+    if(m.kind === 'ocr') tags.push(['OCR','ocr']);
+    if(!input.includes('image')) tags.push(['纯文本','']);
+    if(m.gradable === false) tags.push(['不可批改','no']);
+    return tags;
+  }
+
+  function modelItemEl(m){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'model-item' + (gradeState.model === m.id ? ' active' : '') + (m.gradable === false ? ' no' : '');
+    const left = document.createElement('span');
+    left.className = 'model-left';
+    const name = document.createElement('span');
+    name.className = 'model-name';
+    name.textContent = m.id;
+    left.appendChild(name);
+    if(m.note){
+      const note = document.createElement('span');
+      note.className = 'model-note';
+      note.textContent = m.note;
+      left.appendChild(note);
+    }
+    btn.appendChild(left);
+    const tags = document.createElement('span');
+    tags.className = 'model-tags';
+    modelTags(m).forEach(([text, cls]) => {
+      const t = document.createElement('span');
+      t.className = 'mtag' + (cls ? ' ' + cls : '');
+      t.textContent = text;
+      tags.appendChild(t);
+    });
+    btn.appendChild(tags);
+    btn.addEventListener('click', () => {
+      if(m.gradable === false){
+        showGradeStatus(m.note || '该模型不能用于批改。', true);
+        return;
+      }
+      chooseModel(m.id);
+    });
+    return btn;
+  }
+
+  function renderModelPage(){
+    const list = $('#gradeModelList');
+    const total = modelState.filtered.length;
+    if(!total){
+      list.innerHTML = '<div class="model-more">没有匹配的模型，可在下方手动输入模型 ID</div>';
+      $('#gradeModelMore').hidden = true;
+      return;
+    }
+    const batch = modelState.filtered.slice(modelState.shown, modelState.shown + MODEL_PAGE_SIZE);
+    batch.forEach(m => list.appendChild(modelItemEl(m)));
+    modelState.shown += batch.length;
+    $('#gradeModelMore').hidden = modelState.shown >= total;
+  }
+
+  function filterModels(){
+    const q = String($('#gradeModelSearch').value || '').trim().toLowerCase();
+    modelState.filtered = modelState.all.filter(m => {
+      const s = (m.id + ' ' + (m.family || '') + ' ' + (m.note || '')).toLowerCase();
+      return !q || s.includes(q);
+    });
+    modelState.shown = 0;
+    $('#gradeModelList').innerHTML = '';
+    renderModelPage();
+  }
+
+  async function loadModelCatalog(){
+    if(modelState.loading || modelState.loaded) return;
+    modelState.loading = true;
+    try{
+      const res = await fetch('/api/catalog', { headers:{ 'Accept':'application/json' } });
+      const data = await res.json();
+      modelState.all = (data && Array.isArray(data.models) && data.models.length)
+        ? data.models : MODEL_FALLBACK.slice();
+    }catch(e){
+      modelState.all = MODEL_FALLBACK.slice();
+    }
+    modelState.loaded = true;
+    modelState.loading = false;
+    filterModels();
+  }
+
+  async function toggleModelPanel(){
+    const panel = $('#gradeModelPanel');
+    if(!panel) return;
+    if(panel.classList.contains('show')){ panel.classList.remove('show'); return; }
+    panel.classList.add('show');
+    if(!modelState.loaded) await loadModelCatalog();
+    else filterModels();
+    setTimeout(() => { const s = $('#gradeModelSearch'); if(s) s.focus(); }, 0);
+  }
+
+  function chooseModel(id){
+    gradeState.model = id || '';
+    const btn = $('#gradeModelBtn');
+    if(btn) btn.textContent = id || '自动选择（推荐）';
+    const panel = $('#gradeModelPanel');
+    if(panel) panel.classList.remove('show');
+    showGradeStatus('');
+  }
 
   function gradeSideText(side, fill){
     return side.toks.map(t => {
@@ -2330,6 +2502,8 @@
     gradeState.showAll = false;
     $('#gradeResult').innerHTML = '';
     showGradeStatus('');
+    const mp = $('#gradeModelPanel');
+    if(mp) mp.classList.remove('show');
     const sel = $('#gradePage');
     if(lastPages.length){
       sel.innerHTML = lastPages.map((p, i) => '<option value="' + i + '">第 ' + (i + 1) + ' 页</option>').join('');
@@ -2491,6 +2665,7 @@
           body: JSON.stringify({
             image,
             questions,
+            model: gradeState.model || undefined,
             meta:{ page:pageIdx + 1, seed:state.seed, title:state.title || autoTitle() }
           }),
           signal:ctrl.signal
@@ -2537,7 +2712,7 @@
       const timer = setTimeout(() => ctrl.abort(), 40000);
       let res;
       try{
-        res = await fetch('/api/health', { signal:ctrl.signal, headers:{ 'Accept':'application/json' } });
+        res = await fetch('/api/health' + (gradeState.model ? '?model=' + encodeURIComponent(gradeState.model) : ''), { signal:ctrl.signal, headers:{ 'Accept':'application/json' } });
       } finally {
         clearTimeout(timer);
       }
@@ -2581,6 +2756,20 @@
   });
   $('#gradeStart').addEventListener('click', startGrade);
   $('#gradeCheck').addEventListener('click', checkGradeService);
+  $('#gradeModelBtn').addEventListener('click', toggleModelPanel);
+  $('#gradeModelAuto').addEventListener('click', () => chooseModel(''));
+  $('#gradeModelSearch').addEventListener('input', filterModels);
+  $('#gradeModelMore').addEventListener('click', renderModelPage);
+  $('#gradeModelList').addEventListener('scroll', e => {
+    const el = e.currentTarget;
+    if(el.scrollTop + el.clientHeight >= el.scrollHeight - 24) renderModelPage();
+  });
+  $('#gradeModelUse').addEventListener('click', () => {
+    const v = String($('#gradeModelCustom').value || '').trim();
+    if(!v){ showGradeStatus('请输入模型 ID。', true); return; }
+    chooseModel(v);
+    $('#gradeModelCustom').value = '';
+  });
   $('#gradePage').addEventListener('change', () => {
     if(gradeState.busy) return;
     gradeState.result = null;

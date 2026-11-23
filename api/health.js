@@ -10,10 +10,17 @@
  * 注意：百炼 OpenAI 兼容端点不提供 GET /models，不能用模型列表判断 Key，只能实际调用。
  */
 
-const { DEFAULT_BASE, readModels, supportsThinkingToggle } = require('./_models');
+const { DEFAULT_BASE, isVisionModel, readModels, supportsThinkingToggle } = require('./_models');
 
 const MAX_PROBE_MODELS = 6;
 const PROBE_TIMEOUT = 12000;
+
+function queryParam(req, name) {
+  if (req.query && req.query[name] != null) return String(req.query[name]);
+  const m = String(req.url || '').match(new RegExp('[?&]' + name + '=([^&]*)'));
+  if (!m) return '';
+  try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; }
+}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -138,16 +145,24 @@ module.exports = async function handler(req, res) {
   }
 
   const { models, ignored, configured } = readModels();
-  if (!models.length) {
+  const only = queryParam(req, 'model').trim().slice(0, 80);
+  if (only && (!/^[a-z0-9._\/-]{2,80}$/i.test(only) || !isVisionModel(only))) {
+    return send(res, 400, {
+      error: '所选模型不能识别图片：' + only + '。',
+      detail: '请选择支持图片输入的模型（例如 qwen3.8-flash、deepseek-v4.1-flash）。'
+    });
+  }
+  const list = only ? [only] : models;
+  if (!list.length) {
     return send(res, 400, {
       error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
-      detail: '请把 QWEN_MODELS 改为 qwen3-vl-plus、qwen3.8-flash 等视觉模型。',
+      detail: '请把 QWEN_MODELS 改为 qwen3.8-flash、deepseek-v4.1-flash 等视觉模型。',
       ignoredModels: ignored
     });
   }
 
   const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const targets = models.slice(0, MAX_PROBE_MODELS);
+  const targets = list.slice(0, MAX_PROBE_MODELS);
   const results = await Promise.all(targets.map(m => probe(base, key, m)));
   const okCount = results.filter(r => r.ok).length;
 
@@ -155,11 +170,12 @@ module.exports = async function handler(req, res) {
     ok: okCount > 0,
     keyConfigured: true,
     source: configured ? 'env' : 'default',
+    requestedModel: only || undefined,
     total: results.length,
     available: okCount,
     models: results,
     ignoredModels: ignored.length ? ignored : undefined,
-    truncated: models.length > targets.length ? '只检测了前 ' + MAX_PROBE_MODELS + ' 个模型。' : undefined,
+    truncated: list.length > targets.length ? '只检测了前 ' + MAX_PROBE_MODELS + ' 个模型。' : undefined,
     conclusion: conclusionOf(results, ignored)
   });
 };

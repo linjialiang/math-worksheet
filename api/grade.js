@@ -13,7 +13,7 @@
  * 只会使用能识图的模型；配置里的纯文本模型会被忽略，全部无效时直接报错。
  */
 
-const { DEFAULT_BASE, readModels, supportsThinkingToggle } = require('./_models');
+const { DEFAULT_BASE, isVisionModel, readModels, supportsThinkingToggle } = require('./_models');
 
 const MAX_IMAGE_CHARS = 4_000_000;   // data URL 长度，约 3MB 图片
 const MAX_QUESTIONS = 120;
@@ -226,11 +226,21 @@ module.exports = async function handler(req, res) {
   }
 
   const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const { models, ignored, configured } = readModels();
+  const { models: allowed, ignored, configured } = readModels();
+  const requested = body && typeof body.model === 'string' ? body.model.trim().slice(0, 80) : '';
+  if (requested && (!/^[a-z0-9._\/-]{2,80}$/i.test(requested) || !isVisionModel(requested))) {
+    return send(res, 400, {
+      error: '所选模型不能识别图片：' + requested + '。',
+      detail: '请选择支持图片输入的模型（例如 qwen3.8-flash、deepseek-v4.1-flash）。'
+    });
+  }
+  const models = requested
+    ? [requested].concat(allowed.filter(m => m !== requested))
+    : allowed;
   if (!models.length) {
     return send(res, 400, {
       error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
-      detail: '拍照批改只能使用视觉模型（Qwen-VL / Qwen2-VL / Qwen2.5-VL / Qwen3-VL / QVQ / Omni），例如 qwen3-vl-plus。',
+      detail: '拍照批改只能使用视觉模型（Qwen3-VL / Qwen3.5+ / Qwen4+ / Kimi / DeepSeek 多模态），例如 qwen3.8-flash。',
       ignoredModels: ignored
     });
   }
@@ -372,6 +382,7 @@ module.exports = async function handler(req, res) {
   return send(res, 200, {
     ok: true,
     model: usedModel,
+    requestedModel: requested || undefined,
     warning: warning || undefined,
     ignoredModels: ignored.length ? ignored : undefined,
     attempts: attempts.length ? attempts : undefined,
