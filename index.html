@@ -289,6 +289,7 @@
   }
   .grade-status.show{display:block}
   .grade-status.err{background:#fff1f2;color:#be123c}
+  .grade-status.warn{background:#fffbeb;color:#b45309}
   .gsum{
     display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 14px;
     padding:11px 12px;margin-top:8px;border-radius:10px;background:#f8fafc;
@@ -1498,7 +1499,7 @@
         <select class="sel sm" id="gradePage"></select>
       </div>
       <p class="grade-note">
-        使用通义千问 VL 新人免费额度（100 万 Token / 90 天）；请在百炼控制台开启“用完即停”避免扣费。
+        使用通义千问 VL 等能识图的模型识别手写，纯文本模型不能批改；新人免费额度 100 万 Token / 90 天，请在百炼控制台开启“用完即停”避免扣费。
         照片仅用于本次识别，服务端不保存；请拍孩子完成的试卷，不要拍答案卷，并避开姓名、班级。开放题只给参考答案，不自动判错。
       </p>
       <div class="grade-status" id="gradeStatus"></div>
@@ -2312,12 +2313,13 @@
     return out;
   }
 
-  function showGradeStatus(text, err){
+  function showGradeStatus(text, kind){
     const el = $('#gradeStatus');
     if(!el) return;
     el.textContent = text || '';
     el.classList.toggle('show', !!text);
-    el.classList.toggle('err', !!err);
+    el.classList.toggle('err', kind === true || kind === 'err');
+    el.classList.toggle('warn', kind === 'warn');
   }
 
   function openGrade(){
@@ -2498,14 +2500,15 @@
       let data = null;
       try{ data = await res.json(); }catch(e){}
       if(!res.ok){
-        const reason = (data && (data.error || data.detail)) || ('批改接口失败（' + res.status + '）');
-        throw new Error(reason);
+        const msg = (data && (data.error || data.detail)) || ('批改接口失败（' + res.status + '）');
+        const detail = data && data.detail && data.detail !== msg ? ' ' + data.detail : '';
+        throw new Error(msg + detail);
       }
       if(!data || !Array.isArray(data.rows)) throw new Error('批改接口返回格式异常。');
       gradeState.result = data;
       gradeState.showAll = false;
       renderGradeResult();
-      showGradeStatus('');
+      showGradeStatus(data.warning || '', data.warning ? 'warn' : '');
     }catch(err){
       const msg = (err && err.name === 'AbortError')
         ? '批改超时，请检查网络后重试。'

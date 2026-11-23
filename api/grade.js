@@ -9,7 +9,8 @@
  *   - meta: 页码/种子/标题
  *
  * 模型只负责“读出孩子写了什么”，对错由本接口和标准答案比对。
- * 需要环境变量 DASHSCOPE_API_KEY；可选 DASHSCOPE_BASE_URL、QWEN_MODEL。
+ * 需要环境变量 DASHSCOPE_API_KEY；可选 DASHSCOPE_BASE_URL、QWEN_MODELS、QWEN_MODEL。
+ * 只会使用能识图的模型；配置里的纯文本模型会被忽略，全部无效时直接报错。
  */
 
 const DEFAULT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -22,6 +23,32 @@ const DEFAULT_MODELS = [
 ];
 const MAX_IMAGE_CHARS = 4_000_000;   // data URL 长度，约 3MB 图片
 const MAX_QUESTIONS = 120;
+
+// 只认能看图的模型：Qwen-VL / Qwen2-VL / Qwen2.5-VL / Qwen3-VL / QVQ / Omni。
+// 纯文本模型（qwen-plus、qwen-max、qwen-turbo 等）拿到图片只会报错或乱答，必须提前挡住。
+const VISION_MODEL_RE = /^(?:qwen[\d.]*-vl|qvq|qwen[\d.]*-omni)(?:-|$)/i;
+
+function isVisionModel(name) {
+  return VISION_MODEL_RE.test(String(name == null ? '' : name).trim());
+}
+
+function readModels() {
+  const configured = (process.env.QWEN_MODELS || process.env.QWEN_MODEL || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const source = configured.length ? configured : DEFAULT_MODELS;
+  const models = [];
+  const ignored = [];
+  source.forEach(raw => {
+    const name = String(raw == null ? '' : raw).trim();
+    if (!name) return;
+    if (!isVisionModel(name)) {
+      if (!ignored.includes(name)) ignored.push(name);
+      return;
+    }
+    if (!models.includes(name)) models.push(name);
+  });
+  return { models, ignored, configured: configured.length > 0 };
+}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -188,9 +215,17 @@ module.exports = async function handler(req, res) {
   }
 
   const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const configured = (process.env.QWEN_MODELS || process.env.QWEN_MODEL || '')
-    .split(',').map(s => s.trim()).filter(Boolean);
-  const models = configured.length ? configured : DEFAULT_MODELS;
+  const { models, ignored, configured } = readModels();
+  if (!models.length) {
+    return send(res, 400, {
+      error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
+      detail: '拍照批改只能使用视觉模型（Qwen-VL / Qwen2-VL / Qwen2.5-VL / Qwen3-VL / QVQ / Omni），例如 qwen3-vl-plus。',
+      ignoredModels: ignored
+    });
+  }
+  const warning = ignored.length
+    ? '已忽略不能识图的模型：' + ignored.join('、') + '，这些模型读不了照片。'
+    : '';
   const prompt = modelPrompt(questions);
   const deadline = Date.now() + 55000;
   let answers = null;
@@ -316,6 +351,8 @@ module.exports = async function handler(req, res) {
   return send(res, 200, {
     ok: true,
     model: usedModel,
+    warning: warning || undefined,
+    ignoredModels: ignored.length ? ignored : undefined,
     summary: {
       total: rows.length,
       gradable: rows.length - open,
