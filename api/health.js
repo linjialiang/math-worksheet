@@ -1,32 +1,39 @@
 'use strict';
 
 /**
- * 百炼连通性诊断（GET /api/health）
+ * 多平台模型诊断（GET /api/health[?model=provider/model]）
  *
- * 用服务端配置的 DASHSCOPE_API_KEY，对 QWEN_MODELS 里的视觉模型各发一次最小请求，
- * 返回 Key 是否有效、模型是否存在/有权限、额度是否用完、以及耗时。
- * 只发纯文本 "ping"，不传照片；单个模型消耗个位数 token。
- *
- * 注意：百炼 OpenAI 兼容端点不提供 GET /models，不能用模型列表判断 Key，只能实际调用。
+ * 对配置的模型各发一次最小请求（“只回复 OK”，不传照片），
+ * 返回模型是否可用、耗时、HTTP 状态、额度/鉴权错误。
+ * 不配置 Key 的平台会被跳过。
  */
 
-const { DEFAULT_BASE, isVisionModel, readModels, supportsThinkingToggle } = require('./_models');
+const {
+  chat,
+  configuredProviders,
+  getProvider,
+  isVisionRef,
+  keyOf,
+  listModels,
+  parseRef,
+  refOf
+} = require('./_providers');
 
 const MAX_PROBE_MODELS = 6;
 const PROBE_TIMEOUT = 12000;
-
-function queryParam(req, name) {
-  if (req.query && req.query[name] != null) return String(req.query[name]);
-  const m = String(req.url || '').match(new RegExp('[?&]' + name + '=([^&]*)'));
-  if (!m) return '';
-  try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; }
-}
 
 function send(res, status, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.end(JSON.stringify(body));
+}
+
+function queryParam(req, name) {
+  if (req.query && req.query[name] != null) return String(req.query[name]);
+  const m = String(req.url || '').match(new RegExp('[?&]' + name + '=([^&]*)'));
+  if (!m) return '';
+  try { return decodeURIComponent(m[1]); } catch (e) { return m[1]; }
 }
 
 function codeOf(raw) {
@@ -51,42 +58,33 @@ function detailOf(raw) {
 function describe(status, code, detail) {
   const suffix = code ? '（' + code + '）' : '';
   if (status === 0) return '超时（12 秒内没有响应）';
-  if (status === 401) return 'Key 无效，或 Key 与地域不匹配' + suffix;
+  if (status === 401) return 'Key 无效，或 Key 与 Base URL 不匹配' + suffix;
   if (status === 403) return '额度用完、限流或没有模型权限' + suffix;
   if (status === 429) return '额度用完或触发限流' + suffix;
   if (status === 404) return '模型不存在，或当前地域未开通' + suffix;
   if (status === 400) return '请求被拒绝，模型名可能不对' + suffix;
-  if (status >= 500) return '百炼服务异常' + suffix;
+  if (status >= 500) return '模型平台服务异常' + suffix;
   return (detail ? 'HTTP ' + status + '：' + detail : 'HTTP ' + status);
 }
 
-async function probe(base, key, model) {
+async function probe(ref) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT);
   const started = Date.now();
-  const body = {
-    model,
-    temperature: 0,
-    max_tokens: 8,
-    messages: [{ role: 'user', content: '只回复 OK' }]
-  };
-  // 与批改请求保持一致：Plus/Flash 关闭思考，排除思考模式拖慢的可能。
-  if (supportsThinkingToggle(model)) body.enable_thinking = false;
   try {
-    const resp = await fetch(base.replace(/\/$/, '') + '/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + key
-      },
-      body: JSON.stringify(body),
+    const resp = await chat(ref, {
+      messages: [{ role: 'user', content: '只回复 OK' }],
+      maxTokens: 8,
+      temperature: 0,
+      thinkingOff: true,
       signal: controller.signal
     });
     const raw = await resp.text();
     const latencyMs = Date.now() - started;
     const code = resp.ok ? '' : codeOf(raw);
     return {
-      model,
+      model: refOf(ref),
+      provider: ref.provider,
       ok: resp.ok,
       status: resp.status,
       code: code || undefined,
@@ -96,7 +94,8 @@ async function probe(base, key, model) {
   } catch (e) {
     const aborted = e && e.name === 'AbortError';
     return {
-      model,
+      model: refOf(ref),
+      provider: ref.provider,
       ok: false,
       status: 0,
       latencyMs: Date.now() - started,
@@ -107,26 +106,23 @@ async function probe(base, key, model) {
   }
 }
 
-function conclusionOf(results, ignored) {
+function conclusionOf(results) {
   const okCount = results.filter(r => r.ok).length;
-  const ignoredText = ignored.length ? '已忽略不能识图的模型：' + ignored.join('、') + '。' : '';
-  if (okCount) {
-    return 'Key 可用：' + okCount + '/' + results.length + ' 个模型连通。' + ignoredText;
-  }
+  if (okCount) return 'Key 可用：' + okCount + '/' + results.length + ' 个模型连通。';
   const statuses = results.map(r => r.status);
   if (statuses.length && statuses.every(s => s === 401)) {
-    return 'Key 无效，或 API Key 与 DASHSCOPE_BASE_URL 的地域不匹配（北京 Key 只能调北京域名）。';
+    return 'API Key 无效，或 Key 与 Base URL 不匹配（Key 与平台/地域必须对应）。';
   }
   if (statuses.length && statuses.every(s => s === 0)) {
-    return '全部请求超时：Key 可能有效，但 Vercel 到百炼的网络太慢，请重试。';
+    return '全部请求超时：Key 可能有效，但网络到模型平台太慢，请重试。';
   }
-  if (statuses.every(s => s === 429 || s === 403)) {
-    return 'Key 可用，但免费额度已用完、被限流或没有模型权限。' + ignoredText;
+  if (statuses.length && statuses.every(s => s === 429 || s === 403)) {
+    return 'Key 可用，但免费额度已用完、被限流或没有模型权限。';
   }
   if (statuses.some(s => s === 404 || s === 400)) {
-    return '部分模型名不可用或当前地域未开通，请核对模型名。' + ignoredText;
+    return '部分模型名不可用或当前地域未开通，请核对模型名。';
   }
-  return '没有模型连通，请看下面每个模型的状态。' + ignoredText;
+  return '没有模型连通，请看下面每个模型的状态。';
 }
 
 module.exports = async function handler(req, res) {
@@ -136,46 +132,63 @@ module.exports = async function handler(req, res) {
     return send(res, 405, { error: '诊断接口只支持 GET 请求。' });
   }
 
-  const key = process.env.DASHSCOPE_API_KEY;
-  if (!key) {
+  const providers = configuredProviders();
+  if (!providers.some(p => p.configured)) {
     return send(res, 503, {
-      error: '服务端未配置 DASHSCOPE_API_KEY。',
-      detail: '请在 Vercel 项目 Settings -> Environment Variables 里添加 Key，然后重新部署。'
+      error: '服务端未配置任何模型平台的 API Key。',
+      detail: '请配置 DASHSCOPE_API_KEY，或 DEEPSEEK_API_KEY / MOONSHOT_API_KEY / OPENAI_API_KEY 等。'
     });
   }
 
-  const { models, ignored, configured } = readModels();
-  const only = queryParam(req, 'model').trim().slice(0, 80);
-  if (only && (!/^[a-z0-9._\/-]{2,80}$/i.test(only) || !isVisionModel(only))) {
-    return send(res, 400, {
-      error: '所选模型不能识别图片：' + only + '。',
-      detail: '请选择支持图片输入的模型（例如 qwen3.8-flash、deepseek-v4.1-flash）。'
-    });
+  const requestedRaw = queryParam(req, 'model').trim().slice(0, 120);
+  let requested = null;
+  if (requestedRaw) {
+    try {
+      requested = parseRef(requestedRaw);
+    } catch (e) {
+      return send(res, 400, {
+        error: '模型引用不合法：' + requestedRaw + '。',
+        detail: '格式应为 provider/model，例如 dashscope/qwen3.8-flash。'
+      });
+    }
+    if (!isVisionRef(requested)) {
+      return send(res, 400, {
+        error: '所选模型不能用于批改：' + refOf(requested) + '。',
+        detail: '请选择支持图片输入、输出文本的模型。'
+      });
+    }
+    const p = getProvider(requested.provider);
+    if (!keyOf(p)) {
+      return send(res, 400, {
+        error: '模型平台未配置 API Key：' + p.label + '。',
+        detail: '请添加 ' + p.keyEnv + ' 后重新部署。'
+      });
+    }
   }
-  const list = only ? [only] : models;
-  if (!list.length) {
+
+  const refs = requested ? [requested] : listModels();
+  const targets = refs
+    .filter(ref => keyOf(getProvider(ref.provider)))
+    .slice(0, MAX_PROBE_MODELS);
+  if (!targets.length) {
     return send(res, 400, {
-      error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
-      detail: '请把 QWEN_MODELS 改为 qwen3.8-flash、deepseek-v4.1-flash 等视觉模型。',
-      ignoredModels: ignored
+      error: '没有已配置 Key 的模型可检测。',
+      detail: '请检查 GRADE_MODELS，或各平台的模型变量（QWEN_MODELS / DEEPSEEK_MODELS 等）。'
     });
   }
 
-  const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const targets = list.slice(0, MAX_PROBE_MODELS);
-  const results = await Promise.all(targets.map(m => probe(base, key, m)));
+  const results = await Promise.all(targets.map(probe));
   const okCount = results.filter(r => r.ok).length;
 
   return send(res, 200, {
     ok: okCount > 0,
     keyConfigured: true,
-    source: configured ? 'env' : 'default',
-    requestedModel: only || undefined,
+    providers,
+    requestedModel: requested ? refOf(requested) : undefined,
     total: results.length,
     available: okCount,
     models: results,
-    ignoredModels: ignored.length ? ignored : undefined,
-    truncated: list.length > targets.length ? '只检测了前 ' + MAX_PROBE_MODELS + ' 个模型。' : undefined,
-    conclusion: conclusionOf(results, ignored)
+    truncated: refs.length > targets.length ? '只检测了前 ' + MAX_PROBE_MODELS + ' 个模型。' : undefined,
+    conclusion: conclusionOf(results)
   });
 };

@@ -9,11 +9,21 @@
  *   - meta: 页码/种子/标题
  *
  * 模型只负责“读出孩子写了什么”，对错由本接口和标准答案比对。
- * 需要环境变量 DASHSCOPE_API_KEY；可选 DASHSCOPE_BASE_URL、QWEN_MODELS、QWEN_MODEL。
+ * 模型平台通过 api/_providers.js 注册，模型引用为 provider/model。
+ * 至少配置一个平台的 API Key；可选 GRADE_MODELS 控制跨平台尝试顺序。
  * 只会使用能识图的模型；配置里的纯文本模型会被忽略，全部无效时直接报错。
  */
 
-const { DEFAULT_BASE, isVisionModel, readModels, supportsThinkingToggle } = require('./_models');
+const {
+  chat,
+  configuredProviders,
+  getProvider,
+  isVisionRef,
+  keyOf,
+  listModels,
+  parseRef,
+  refOf
+} = require('./_providers');
 
 const MAX_IMAGE_CHARS = 4_000_000;   // data URL 长度，约 3MB 图片
 const MAX_QUESTIONS = 120;
@@ -109,31 +119,6 @@ function modelPrompt(questions) {
   ].join('\n');
 }
 
-function callModel(base, key, model, prompt, image, signal) {
-  const payload = {
-    model,
-    temperature: 0,
-    max_tokens: 6000,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image_url', image_url: { url: image } },
-        { type: 'text', text: prompt }
-      ]
-    }]
-  };
-  if (supportsThinkingToggle(model)) payload.enable_thinking = false;
-  return fetch(base.replace(/\/$/, '') + '/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + key
-    },
-    body: JSON.stringify(payload),
-    signal
-  });
-}
-
 function detailOf(raw) {
   let detail = String(raw || '').slice(0, 500);
   try {
@@ -145,7 +130,7 @@ function detailOf(raw) {
 
 function isFallbackError(status, raw) {
   const s = String(raw || '').toLowerCase();
-  if (status === 429 || status === 403 || status === 404 || status === 408 || status === 504) return true;
+  if (status === 401 || status === 403 || status === 404 || status === 408 || status === 429 || status === 504) return true;
   if (/allocationquota|freetieronly|insufficient_quota|rate.?limit|quota|arrears|free.?tier|exceeded|insufficient/i.test(s)) return true;
   if (status === 400 && /model|invalidparameter|not.?found/i.test(s)) return true;
   return false;
@@ -170,8 +155,8 @@ function failureInfo(last) {
   }
   if (status === 401) {
     return {
-      error: 'API Key 无效或与地域不匹配' + at + '（HTTP 401）。',
-      detail: '北京地域的 Key 只能调用北京域名；请核对 DASHSCOPE_API_KEY 与 DASHSCOPE_BASE_URL。'
+      error: 'API Key 无效或与 Base URL 不匹配' + at + '。',
+      detail: '请核对对应平台的环境变量：Key 与 Base URL 必须属于同一平台/地域。'
     };
   }
   if (status === 403 || status === 429 || quota) {
@@ -199,10 +184,11 @@ module.exports = async function handler(req, res) {
     return send(res, 405, { error: '只支持 POST 请求。' });
   }
 
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) {
+  const anyProvider = configuredProviders().some(p => p.configured);
+  if (!anyProvider) {
     return send(res, 503, {
-      error: '服务端未配置 DASHSCOPE_API_KEY，请先在 Vercel 环境变量里配置百炼 API Key。'
+      error: '服务端未配置任何模型平台的 API Key。',
+      detail: '请配置 DASHSCOPE_API_KEY，或 DEEPSEEK_API_KEY / MOONSHOT_API_KEY / OPENAI_API_KEY 等；也可以用 GRADE_MODELS 指定 provider/model。'
     });
   }
 
@@ -225,28 +211,42 @@ module.exports = async function handler(req, res) {
     return send(res, 400, { error: '题目清单为空或数量异常。' });
   }
 
-  const base = process.env.DASHSCOPE_BASE_URL || DEFAULT_BASE;
-  const { models: allowed, ignored, configured } = readModels();
-  const requested = body && typeof body.model === 'string' ? body.model.trim().slice(0, 80) : '';
-  if (requested && (!/^[a-z0-9._\/-]{2,80}$/i.test(requested) || !isVisionModel(requested))) {
-    return send(res, 400, {
-      error: '所选模型不能识别图片：' + requested + '。',
-      detail: '请选择支持图片输入的模型（例如 qwen3.8-flash、deepseek-v4.1-flash）。'
-    });
+  const requestedRaw = body && typeof body.model === 'string' ? body.model.trim().slice(0, 120) : '';
+  let requested = null;
+  if (requestedRaw) {
+    try {
+      requested = parseRef(requestedRaw);
+    } catch (e) {
+      return send(res, 400, {
+        error: '模型引用不合法：' + requestedRaw + '。',
+        detail: '格式应为 provider/model，例如 dashscope/qwen3.8-flash。'
+      });
+    }
+    if (!isVisionRef(requested)) {
+      return send(res, 400, {
+        error: '所选模型不能用于批改：' + refOf(requested) + '。',
+        detail: '请选择支持图片输入、输出文本的模型；OCR 与生图模型不适用。'
+      });
+    }
+    const p = getProvider(requested.provider);
+    if (!keyOf(p)) {
+      return send(res, 400, {
+        error: '模型平台未配置 API Key：' + p.label + '。',
+        detail: '请在 Vercel 环境变量添加 ' + p.keyEnv + ' 后重新部署。'
+      });
+    }
   }
+
+  const usable = listModels();
   const models = requested
-    ? [requested].concat(allowed.filter(m => m !== requested))
-    : allowed;
+    ? [requested].concat(usable.filter(r => refOf(r) !== refOf(requested)))
+    : usable;
   if (!models.length) {
     return send(res, 400, {
-      error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
-      detail: '拍照批改只能使用视觉模型（Qwen3-VL / Qwen3.5+ / Qwen4+ / Kimi / DeepSeek 多模态），例如 qwen3.8-flash。',
-      ignoredModels: ignored
+      error: '没有可用的视觉模型。',
+      detail: '请检查 GRADE_MODELS，或各平台的模型变量（QWEN_MODELS / DEEPSEEK_MODELS / MOONSHOT_MODELS 等）。'
     });
   }
-  const warning = ignored.length
-    ? '已忽略不能识图的模型：' + ignored.join('、') + '，这些模型读不了照片。'
-    : '';
   const prompt = modelPrompt(questions);
   const deadline = Date.now() + 55000;
   const attempts = [];
@@ -259,20 +259,34 @@ module.exports = async function handler(req, res) {
     attempts.push(err);
   }
 
-  for (const model of models) {
+  for (const ref of models) {
     const remain = deadline - Date.now();
     if (remain < 3000) break;
     const controller = new AbortController();
     // 单模型最多 25 秒；超时就换下一个，避免前面的慢请求把总预算耗尽。
     const timer = setTimeout(() => controller.abort(), Math.min(25000, Math.max(5000, remain)));
+    const label = refOf(ref);
     let resp, raw;
     try {
-      resp = await callModel(base, apiKey, model, prompt, image, controller.signal);
+      resp = await chat(ref, {
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: image } },
+            { type: 'text', text: prompt }
+          ]
+        }],
+        maxTokens: 6000,
+        temperature: 0,
+        thinkingOff: true,
+        signal: controller.signal
+      });
       raw = await resp.text();
     } catch (e) {
       clearTimeout(timer);
       record({
-        model,
+        model: label,
+        provider: ref.provider,
         status: e && e.name === 'AbortError' ? 504 : 502,
         detail: String(e && e.message || e).slice(0, 300)
       });
@@ -282,7 +296,7 @@ module.exports = async function handler(req, res) {
 
     if (!resp.ok) {
       const detail = detailOf(raw);
-      record({ model, status: resp.status, detail });
+      record({ model: label, provider: ref.provider, status: resp.status, detail });
       if (isFallbackError(resp.status, raw)) continue;
       const info = failureInfo(lastErr);
       return send(res, resp.status === 401 ? 401 : 502, {
@@ -296,7 +310,7 @@ module.exports = async function handler(req, res) {
     try {
       payload = JSON.parse(raw);
     } catch (e) {
-      record({ model, status: 502, detail: '模型返回的不是合法 JSON。' });
+      record({ model: label, provider: ref.provider, status: 502, detail: '模型返回的不是合法 JSON。' });
       continue;
     }
 
@@ -309,7 +323,8 @@ module.exports = async function handler(req, res) {
 
     if (!Array.isArray(found) || !found.length) {
       record({
-        model,
+        model: label,
+        provider: ref.provider,
         status: 502,
         detail: String(content || '').slice(0, 300) || '模型没有返回识别结果。'
       });
@@ -317,7 +332,7 @@ module.exports = async function handler(req, res) {
     }
 
     answers = found;
-    usedModel = model;
+    usedModel = label;
     break;
   }
 
@@ -382,9 +397,7 @@ module.exports = async function handler(req, res) {
   return send(res, 200, {
     ok: true,
     model: usedModel,
-    requestedModel: requested || undefined,
-    warning: warning || undefined,
-    ignoredModels: ignored.length ? ignored : undefined,
+    requestedModel: requestedRaw || undefined,
     attempts: attempts.length ? attempts : undefined,
     summary: {
       total: rows.length,

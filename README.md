@@ -16,42 +16,53 @@
 
 流程：拍照/上传 → 压缩 → 调 `/api/grade` 读取手写答案 → 与当前页标准答案比对 → 分数 + 错题表格。**不在照片上画标记，服务端不保存照片。** 部署后可点「检查连接」（`GET /api/health`）确认 Key 和视觉模型是否连通。
 
-批改弹窗可选择**识别模型**：列表收录了北京有免费额度、支持图片输入的 Qwen / Kimi / DeepSeek 多模态模型，带输入类型标签（图片、视频、OCR）；支持搜索与滚动懒加载，也能手动输入模型 ID。目录由 `GET /api/catalog` 提供，选中模型会优先尝试，失败后仍按 `QWEN_MODELS` 轮换。`qwen-image-*` 等生图模型输出图片，会标记为不可批改。
+批改弹窗可选择**识别模型**：目录由 `GET /api/catalog` 提供，覆盖百炼、DeepSeek、Moonshot、OpenAI、Gemini、OpenRouter 等平台的视觉模型，带输入类型标签（图片、视频、OCR）；支持搜索、分页懒加载，也能手动输入 `provider/model`。选中模型会优先尝试，失败后按 `GRADE_MODELS` 轮换。
 
 ### 部署
 
-1. 在阿里云百炼开通服务并创建 API Key（需实名认证；华北 2 北京地域才有新人免费额度）。
+1. 在至少一个模型平台创建 API Key（阿里云百炼、DeepSeek、Moonshot / Kimi、OpenAI、Google Gemini、OpenRouter，或任意 OpenAI 兼容平台）。
 2. 将本仓库导入 Vercel，项目根目录无需构建命令；添加环境变量：
-   - `DASHSCOPE_API_KEY`：百炼 API Key
-   - `DASHSCOPE_BASE_URL`：可选，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3.8-flash,deepseek-v4.1-flash,qwen4-max`
-   - `QWEN_MODEL`：兼容旧配置，只填一个模型；`QWEN_MODELS` 非空时优先用列表
+   - 至少配置一个平台的 Key：`DASHSCOPE_API_KEY`、`DEEPSEEK_API_KEY`、`MOONSHOT_API_KEY`、`OPENAI_API_KEY`、`GEMINI_API_KEY`、`OPENROUTER_API_KEY`
+   - 自定义平台：`CUSTOM_API_KEY` + `CUSTOM_BASE_URL` + `CUSTOM_MODELS`
+   - 各平台可选 `*_BASE_URL`；模型列表用 `QWEN_MODELS`、`DEEPSEEK_MODELS`、`MOONSHOT_MODELS` 等
+   - `GRADE_MODELS`：可选，跨平台尝试顺序，格式 `provider/model`，优先级最高，例如 `dashscope/qwen3.8-flash,deepseek/deepseek-flash,moonshot/kimi-k3.1-pro`
 3. 部署后打开 Vercel 地址，点「拍照批改」。
 
-> 后端只接受能识图的模型：Qwen3-VL、Qwen3.5+ 原生视觉系列、Qwen4+、Kimi 多模态、DeepSeek V4.1、QVQ、Omni、OCR。
-> 如果 `QWEN_MODELS` 混入 `qwen-plus`、`qwen-max`、`qwen-turbo`、`qwen3-max` 等纯文本模型，会自动忽略并在批改结果上方提示；全部模型都不能识图时直接返回错误，不会把照片发给纯文本模型。
+### 模型平台（provider）
 
-> 免费额度按模型独立计算，后端会按 `QWEN_MODELS` 顺序自动切换：当前模型额度用完、限流或不可用时，自动试下一个。
+| provider | Key 环境变量 | 默认 Base URL | 默认模型 |
+| --- | --- | --- | --- |
+| `dashscope` | `DASHSCOPE_API_KEY` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.8-flash`、`deepseek-v4.1-flash`、`qwen4-max` |
+| `deepseek` | `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1` | `deepseek-flash` |
+| `moonshot` | `MOONSHOT_API_KEY` | `https://api.moonshot.cn/v1` | `kimi-k3.1-pro` |
+| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1` | 由 `OPENAI_MODELS` 指定 |
+| `gemini` | `GEMINI_API_KEY` | `https://generativelanguage.googleapis.com/v1beta/openai` | 由 `GEMINI_MODELS` 指定 |
+| `openrouter` | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | 由 `OPENROUTER_MODELS` 指定 |
+| `custom` | `CUSTOM_API_KEY` | 由 `CUSTOM_BASE_URL` 指定 | 由 `CUSTOM_MODELS` 指定 |
+
+> 模型引用统一为 `provider/model`；不写 provider 时默认 `dashscope`，兼容旧的 `QWEN_MODELS` / `QWEN_MODEL`。
 >
-> 只能填 **Qwen3-VL / Qwen3.5+** 等能看图的模型；纯文本模型不能批改。不要把 72 个模型全部填进去，只挑带视觉能力的几个。
+> 新增平台有两种方式：直接用 `custom` 接入任意 OpenAI 兼容服务，无需改代码；或在 `api/_providers.js` 注册一条，供目录与诊断复用。
+
+> 后端只接受能识图的模型：Qwen3-VL、Qwen3.5+、Qwen4+、Kimi 多模态、DeepSeek V4.1、GPT、Gemini 等。纯文本模型、OCR 与生图模型不能用于批改；批量轮换时遇到 401/403/404/429/超时会自动换下一个平台或模型。
 
 ### 检查连接与排错
 
-批改弹窗底部有「检查连接」：它会对 `QWEN_MODELS` 里的每个视觉模型各发一次最小请求（“只回复 OK”，不传照片），返回 Key 是否有效、模型是否可用、额度状态和耗时。
+批改弹窗底部有「检查连接」：它会对 `GRADE_MODELS`（或各平台配置的模型）里的视觉模型各发一次最小请求（“只回复 OK”，不传照片），返回 Key 是否有效、模型是否可用、额度状态和耗时。选定具体模型时只检测该模型。
 
 常见错误对照：
 
 | 提示 | 含义 | 处理 |
 | --- | --- | --- |
 | `This operation was aborted` / 模型响应超时 | 请求在 25 秒内没有返回，不是额度问题 | 重试；照片过大时换更小的照片；先点「检查连接」 |
-| HTTP 401 / Key 无效或与地域不匹配 | Key 与 `DASHSCOPE_BASE_URL` 的地域不同 | 北京 Key 只能调北京域名 `dashscope.aliyuncs.com` |
-| HTTP 429 / 403 | 免费额度用完、限流或模型未授权 | 百炼控制台查看额度与模型开通状态 |
-| HTTP 404 / 400（模型名） | 模型在当前地域不存在、已下线或名称不对 | 改用 `qwen3-vl-plus` / `qwen3.8-flash` |
+| HTTP 401 / Key 无效或与 Base URL 不匹配 | Key 与平台/地域不对应 | 核对对应平台的 `*_API_KEY` 与 `*_BASE_URL` |
+| HTTP 429 / 403 | 额度用完、限流或模型未授权 | 平台控制台查看额度与模型开通状态 |
+| HTTP 404 / 400（模型名） | 模型在当前平台/地域不存在、已下线或名称不对 | 换一个可用模型，或检查 `GRADE_MODELS` |
 | QVQ 报错 | QVQ 只支持流式输出 | 批改接口是非流式，请改用 Qwen3-VL |
 
-> 百炼 OpenAI 兼容端点不提供 `GET /models`，检查连接只能实际发一次最小对话请求；每次检查消耗的 token 很少。
+> 多数平台的 OpenAI 兼容端点没有统一的模型列表接口，检查连接只能实际发一次最小对话请求；每次检查消耗的 token 很少。
 >
-> Qwen3-VL 与 Qwen3.5+ 系列默认开启思考模式，批改请求已显式设置 `enable_thinking: false`，避免思考过程拖慢识别。
+> 百炼的 Qwen3-VL 与 Qwen3.5+ 系列默认开启思考模式，批改请求已显式设置 `enable_thinking: false`，避免思考过程拖慢识别；其他平台保持各自默认设置。
 
 > GitHub Pages 只能托管静态页，不能运行 `/api/grade`；拍照批改必须部署到 Vercel（或其他支持 Serverless Function 的平台）。
 >
@@ -85,7 +96,8 @@
 已下架免费额度的常见模型（新用户不再发放，老用户已领的仍可用到到期）：`qwen3-vl-flash`（模型已于 2026-10-10 下线）、`qwen-vl-plus`、`qwen-vl-max`、`qwen3-vl-8b-instruct`、Qwen3.5 / 3.6 系列、QVQ 系列。默认列表已避开这些模型。
 
 -   免费额度有效期 90 天，仅华北 2（北京）地域；输入和输出 Token 共用同一份额度。
--   免费额度按模型独立计算，一个模型用完不会自动换；后端会按 `QWEN_MODELS` 顺序切换。
+-   免费额度按模型独立计算，一个模型用完不会自动换；后端会按 `GRADE_MODELS` 跨平台顺序切换。
+-   百炼额度不够时，可以再配置 `DEEPSEEK_API_KEY`、`MOONSHOT_API_KEY`、`OPENROUTER_API_KEY` 等，用 `GRADE_MODELS` 把其他平台排在前面。
 -   请在百炼控制台开启「免费额度用完即停」：额度耗尽时返回 HTTP 403（`AllocationQuota.FreeTierOnly`），避免自动按量扣费。
 -   额度到期/耗尽后，拍照批改会返回错误；生成、打印、导出 PDF 不受影响。
 -   照片会发送给阿里云百炼，请避开姓名、班级等个人信息；服务端只做转发，不落盘、不写日志。
@@ -128,4 +140,4 @@
 
 ## 说明
 
-`index.html` 是完整前端，无构建步骤、无前端外部依赖；`api/grade.js` 是批改函数，`api/health.js` 诊断 Key 与模型，`api/catalog.js` 提供模型目录，`api/_models.js` 存放视觉模型判断。不配置 API Key 时，生成、打印和导出 PDF 仍可正常使用。
+`index.html` 是完整前端，无构建步骤、无前端外部依赖；`api/grade.js` 是批改函数，`api/health.js` 诊断 Key 与模型，`api/catalog.js` 提供模型目录，`api/_providers.js` 是模型平台注册表，`api/_catalog.js` 是目录数据。不配置 API Key 时，生成、打印和导出 PDF 仍可正常使用。

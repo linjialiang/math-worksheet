@@ -1546,7 +1546,7 @@
           <span class="model-tags"><span class="mtag">自动</span></span>
         </button>
         <input class="model-search" id="gradeModelSearch" type="search" placeholder="搜索模型，如 qwen / kimi / deepseek" autocomplete="off">
-        <div class="model-hint">已收录的北京免费额度模型；标签为输入类型，最终以百炼控制台为准</div>
+        <div class="model-hint">支持百炼、DeepSeek、Moonshot、OpenAI、Gemini、OpenRouter 等平台；未配置 Key 的模型会标灰</div>
         <div class="model-list" id="gradeModelList"></div>
         <div class="model-more" id="gradeModelMore" hidden>向下滚动加载更多</div>
         <div class="model-custom">
@@ -2327,9 +2327,9 @@
 
   /* ---------------- 识别模型目录：搜索 + 分页懒加载 ---------------- */
   const MODEL_FALLBACK = [
-    { id:'qwen3.8-flash', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true },
-    { id:'deepseek-v4.1-flash', family:'DeepSeek', input:['text','image'], output:['text'], quota:true, gradable:true },
-    { id:'qwen4-max', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true }
+    { provider:'dashscope', ref:'dashscope/qwen3.8-flash', model:'qwen3.8-flash', providerLabel:'阿里云百炼', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true, available:true },
+    { provider:'dashscope', ref:'dashscope/deepseek-v4.1-flash', model:'deepseek-v4.1-flash', providerLabel:'阿里云百炼', family:'DeepSeek', input:['text','image'], output:['text'], quota:true, gradable:true, available:true },
+    { provider:'dashscope', ref:'dashscope/qwen4-max', model:'qwen4-max', providerLabel:'阿里云百炼', family:'Qwen', input:['text','image','video'], output:['text'], quota:true, gradable:true, available:true }
   ];
   const MODEL_PAGE_SIZE = 12;
   const modelState = { all:[], filtered:[], shown:0, loaded:false, loading:false };
@@ -2346,39 +2346,45 @@
   }
 
   function modelItemEl(m){
+    const ref = m.ref || m.id;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'model-item' + (gradeState.model === m.id ? ' active' : '') + (m.gradable === false ? ' no' : '');
+    btn.className = 'model-item' + (gradeState.model === ref ? ' active' : '') + (m.gradable === false || m.available === false ? ' no' : '');
     const left = document.createElement('span');
     left.className = 'model-left';
     const name = document.createElement('span');
     name.className = 'model-name';
-    name.textContent = m.id;
+    name.textContent = m.model || m.id;
     left.appendChild(name);
-    if(m.note){
-      const note = document.createElement('span');
-      note.className = 'model-note';
-      note.textContent = m.note;
-      left.appendChild(note);
-    }
+    const note = document.createElement('span');
+    note.className = 'model-note';
+    note.textContent = [m.providerLabel || m.provider, m.note].filter(Boolean).join(' · ');
+    left.appendChild(note);
     btn.appendChild(left);
     const tags = document.createElement('span');
     tags.className = 'model-tags';
-    modelTags(m).forEach(([text, cls]) => {
-      const t = document.createElement('span');
-      t.className = 'mtag' + (cls ? ' ' + cls : '');
-      t.textContent = text;
-      tags.appendChild(t);
-    });
+    if(m.available === false) tags.appendChild(tagEl('未配置 Key','no'));
+    modelTags(m).forEach(([text, cls]) => tags.appendChild(tagEl(text, cls)));
     btn.appendChild(tags);
     btn.addEventListener('click', () => {
+      if(m.available === false){
+        showGradeStatus('该平台未配置 API Key，请先在 Vercel 环境变量里配置。', true);
+        return;
+      }
       if(m.gradable === false){
         showGradeStatus(m.note || '该模型不能用于批改。', true);
         return;
       }
-      chooseModel(m.id);
+      chooseModel(ref, m.model || m.id);
     });
     return btn;
+  }
+
+  function tagEl(text, cls){
+    const t = document.createElement('span');
+    t.className = 'mtag' + (cls ? ' ' + cls : '');
+    t.textContent = text;
+    return t;
   }
 
   function renderModelPage(){
@@ -2398,7 +2404,8 @@
   function filterModels(){
     const q = String($('#gradeModelSearch').value || '').trim().toLowerCase();
     modelState.filtered = modelState.all.filter(m => {
-      const s = (m.id + ' ' + (m.family || '') + ' ' + (m.note || '')).toLowerCase();
+      const s = [m.model || m.id, m.ref, m.provider, m.providerLabel, m.family, m.note]
+        .filter(Boolean).join(' ').toLowerCase();
       return !q || s.includes(q);
     });
     modelState.shown = 0;
@@ -2432,10 +2439,10 @@
     setTimeout(() => { const s = $('#gradeModelSearch'); if(s) s.focus(); }, 0);
   }
 
-  function chooseModel(id){
-    gradeState.model = id || '';
+  function chooseModel(ref, label){
+    gradeState.model = ref || '';
     const btn = $('#gradeModelBtn');
-    if(btn) btn.textContent = id || '自动选择（推荐）';
+    if(btn) btn.textContent = ref ? (label || ref) : '自动选择（推荐）';
     const panel = $('#gradeModelPanel');
     if(panel) panel.classList.remove('show');
     showGradeStatus('');
@@ -2726,7 +2733,10 @@
         return;
       }
       const lines = [data.conclusion || (data.ok ? 'Key 可用。' : '检查未通过。')];
-      if(data.source) lines.push(data.source === 'env' ? '模型列表来自 Vercel 环境变量 QWEN_MODELS。' : '使用代码默认模型列表。');
+      if(data.providers){
+        const names = data.providers.filter(p => p.configured).map(p => p.label);
+        lines.push('已配置平台：' + (names.join('、') || '无'));
+      }
       (data.models || []).forEach(m => {
         lines.push((m.ok ? '✓ ' : '✗ ') + m.model + '：' + (m.text || ''));
       });
@@ -2767,7 +2777,8 @@
   $('#gradeModelUse').addEventListener('click', () => {
     const v = String($('#gradeModelCustom').value || '').trim();
     if(!v){ showGradeStatus('请输入模型 ID。', true); return; }
-    chooseModel(v);
+    const ref = v.includes('/') ? v : 'dashscope/' + v;
+    chooseModel(ref, ref);
     $('#gradeModelCustom').value = '';
   });
   $('#gradePage').addEventListener('change', () => {
