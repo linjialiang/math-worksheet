@@ -141,7 +141,7 @@ module.exports = async function handler(req, res) {
   if (!models.length) {
     return send(res, 400, {
       error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
-      detail: '请把 QWEN_MODELS 改为 qwen3-vl-flash、qwen3-vl-plus 等视觉模型。',
+      detail: '请把 QWEN_MODELS 改为 qwen3-vl-plus、qwen3.8-flash 等视觉模型。',
       ignoredModels: ignored
     });
   }

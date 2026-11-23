@@ -183,7 +183,7 @@ function failureInfo(last) {
   if (status === 404 || /model.{0,24}(not|invalid|does not exist)/i.test(detail)) {
     return {
       error: '模型不可用或名称不正确' + at + '。',
-      detail: '请在百炼模型广场确认该模型在当前地域已开通，或改用 qwen3-vl-flash / qwen3-vl-plus。'
+      detail: '请在百炼模型广场确认该模型在当前地域已开通，或改用 qwen3-vl-plus / qwen3.8-flash。'
     };
   }
   return {

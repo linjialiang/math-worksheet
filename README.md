@@ -22,16 +22,16 @@
 2. 将本仓库导入 Vercel，项目根目录无需构建命令；添加环境变量：
    - `DASHSCOPE_API_KEY`：百炼 API Key
    - `DASHSCOPE_BASE_URL`：可选，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-flash,qwen3-vl-plus,qwen3-vl-8b-instruct,qwen-vl-plus,qwen-vl-max`
+   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-plus,qwen3.8-flash,qwen3.7-plus,qwen3.7-flash`
    - `QWEN_MODEL`：兼容旧配置，只填一个模型；`QWEN_MODELS` 非空时优先用列表
 3. 部署后打开 Vercel 地址，点「拍照批改」。
 
-> 后端只接受能识图的模型：Qwen-VL / Qwen2-VL / Qwen2.5-VL / Qwen3-VL / QVQ / Omni。
-> 如果 `QWEN_MODELS` 混入 `qwen-plus`、`qwen-max`、`qwen-turbo` 等纯文本模型，会自动忽略并在批改结果上方提示；全部模型都不能识图时直接返回错误，不会把照片发给纯文本模型。
+> 后端只接受能识图的模型：Qwen3-VL、Qwen3.5+ 原生视觉系列、QVQ、Omni、OCR。
+> 如果 `QWEN_MODELS` 混入 `qwen-plus`、`qwen-max`、`qwen-turbo`、`qwen3-max` 等纯文本模型，会自动忽略并在批改结果上方提示；全部模型都不能识图时直接返回错误，不会把照片发给纯文本模型。
 
 > 免费额度按模型独立计算，后端会按 `QWEN_MODELS` 顺序自动切换：当前模型额度用完、限流或不可用时，自动试下一个。
 >
-> 只能填 **Qwen-VL / Qwen3-VL / QVQ** 等能看图的模型；纯文本模型不能批改。不要把 72 个模型全部填进去，只挑带视觉能力的几个。
+> 只能填 **Qwen3-VL / Qwen3.5+** 等能看图的模型；纯文本模型不能批改。不要把 72 个模型全部填进去，只挑带视觉能力的几个。
 
 ### 检查连接与排错
 
@@ -44,12 +44,12 @@
 | `This operation was aborted` / 模型响应超时 | 请求在 25 秒内没有返回，不是额度问题 | 重试；照片过大时换更小的照片；先点「检查连接」 |
 | HTTP 401 / Key 无效或与地域不匹配 | Key 与 `DASHSCOPE_BASE_URL` 的地域不同 | 北京 Key 只能调北京域名 `dashscope.aliyuncs.com` |
 | HTTP 429 / 403 | 免费额度用完、限流或模型未授权 | 百炼控制台查看额度与模型开通状态 |
-| HTTP 404 / 400（模型名） | 模型在当前地域不存在或名称不对 | 改用 `qwen3-vl-flash` / `qwen3-vl-plus` |
+| HTTP 404 / 400（模型名） | 模型在当前地域不存在、已下线或名称不对 | 改用 `qwen3-vl-plus` / `qwen3.8-flash` |
 | QVQ 报错 | QVQ 只支持流式输出 | 批改接口是非流式，请改用 Qwen3-VL |
 
 > 百炼 OpenAI 兼容端点不提供 `GET /models`，检查连接只能实际发一次最小对话请求；每次检查消耗的 token 很少。
 >
-> Qwen3-VL Plus / Flash 默认开启思考模式，批改请求已显式设置 `enable_thinking: false`，避免思考过程拖慢识别。
+> Qwen3-VL 与 Qwen3.5+ 系列默认开启思考模式，批改请求已显式设置 `enable_thinking: false`，避免思考过程拖慢识别。
 
 > GitHub Pages 只能托管静态页，不能运行 `/api/grade`；拍照批改必须部署到 Vercel（或其他支持 Serverless Function 的平台）。
 >
@@ -57,9 +57,27 @@
 
 ### 免费额度与费用
 
--   通义千问 VL 新用户有 100 万 Token 免费额度，有效期 90 天；仅华北 2（北京）地域。
--   免费额度按模型分别计算；不同 VL 模型各有独立额度，后端会按 `QWEN_MODELS` 顺序自动换下一个。
--   请在百炼控制台开启「免费额度用完即停」，避免额度耗尽后自动按量扣费。
+先分清两个概念：
+
+-   **输入图片不等于输出图片**。批改只需要模型“看懂照片里的手写数字”，输出仍然是文字（分数、错题表格）。Qwen 的视觉模型都是“图像/视频输入 → 文本输出”。
+-   **不是所有大模型都能看图**。2026 年起 Qwen3.5 / 3.6 / 3.7 / 3.8 系列是原生视觉语言模型，Plus / Flash / Max 都能输入文本、图像、视频；Qwen3-VL 是专用视觉系列。旧文本模型（qwen-plus、qwen-max、qwen-turbo、qwen3-max）只接受文本。
+
+截至 2026-11，华北 2（北京）**同时有免费额度、又能输入图片**的常用模型（以控制台免费额度页面为准）：
+
+| 模型 | 图片输入 | 免费额度 |
+| --- | --- | --- |
+| `qwen3-vl-plus` | 支持 | 100 万 Token |
+| `qwen3.8-flash` | 支持 | 100 万 Token |
+| `qwen3.7-plus` | 支持 | 100 万 Token |
+| `qwen3.7-flash` | 支持 | 100 万 Token |
+| `qwen3.8-max` | 支持 | 100 万 Token |
+| `qwen-vl-ocr` / `qwen3.5-ocr` | 支持（OCR） | 100 万 Token |
+
+已下架免费额度的常见模型（新用户不再发放，老用户已领的仍可用到到期）：`qwen3-vl-flash`（模型已于 2026-10-10 下线）、`qwen-vl-plus`、`qwen-vl-max`、`qwen3-vl-8b-instruct`、Qwen3.5 / 3.6 系列、QVQ 系列。默认列表已避开这些模型。
+
+-   免费额度有效期 90 天，仅华北 2（北京）地域；输入和输出 Token 共用同一份额度。
+-   免费额度按模型独立计算，一个模型用完不会自动换；后端会按 `QWEN_MODELS` 顺序切换。
+-   请在百炼控制台开启「免费额度用完即停」：额度耗尽时返回 HTTP 403（`AllocationQuota.FreeTierOnly`），避免自动按量扣费。
 -   额度到期/耗尽后，拍照批改会返回错误；生成、打印、导出 PDF 不受影响。
 -   照片会发送给阿里云百炼，请避开姓名、班级等个人信息；服务端只做转发，不落盘、不写日志。
 
