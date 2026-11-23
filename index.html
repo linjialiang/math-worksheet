@@ -2551,6 +2551,7 @@
         return;
       }
       const lines = [data.conclusion || (data.ok ? 'Key 可用。' : '检查未通过。')];
+      if(data.source) lines.push(data.source === 'env' ? '模型列表来自 Vercel 环境变量 QWEN_MODELS。' : '使用代码默认模型列表。');
       (data.models || []).forEach(m => {
         lines.push((m.ok ? '✓ ' : '✗ ') + m.model + '：' + (m.text || ''));
       });

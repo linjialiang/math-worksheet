@@ -22,7 +22,7 @@
 2. 将本仓库导入 Vercel，项目根目录无需构建命令；添加环境变量：
    - `DASHSCOPE_API_KEY`：百炼 API Key
    - `DASHSCOPE_BASE_URL`：可选，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3-vl-plus,qwen3.8-flash,qwen3.7-plus,qwen3.7-flash`
+   - `QWEN_MODELS`：可选，按顺序尝试的视觉模型列表，默认 `qwen3.8-flash,qwen4-max`
    - `QWEN_MODEL`：兼容旧配置，只填一个模型；`QWEN_MODELS` 非空时优先用列表
 3. 部署后打开 Vercel 地址，点「拍照批改」。
 
@@ -66,12 +66,15 @@
 
 | 模型 | 图片输入 | 免费额度 |
 | --- | --- | --- |
-| `qwen3-vl-plus` | 支持 | 100 万 Token |
+| `qwen4-max` | 支持 | 100 万 Token |
 | `qwen3.8-flash` | 支持 | 100 万 Token |
+| `qwen3-vl-plus` | 支持 | 100 万 Token |
 | `qwen3.7-plus` | 支持 | 100 万 Token |
 | `qwen3.7-flash` | 支持 | 100 万 Token |
-| `qwen3.8-max` | 支持 | 100 万 Token |
+| `qwen3.8-max` / `qwen3.8-max-0902` | 支持 | 100 万 Token |
 | `qwen-vl-ocr` / `qwen3.5-ocr` | 支持（OCR） | 100 万 Token |
+
+额度按账号发放，不是每个账号都有上表所有模型，请以控制台「免费额度」页面实际显示为准。默认列表只放 `qwen3.8-flash`、`qwen4-max`；把你账号里实际有额度的模型按顺序填进 `QWEN_MODELS` 即可，例如 `qwen3.8-flash,qwen4-max,qwen3.8-max-0902`。
 
 已下架免费额度的常见模型（新用户不再发放，老用户已领的仍可用到到期）：`qwen3-vl-flash`（模型已于 2026-10-10 下线）、`qwen-vl-plus`、`qwen-vl-max`、`qwen3-vl-8b-instruct`、Qwen3.5 / 3.6 系列、QVQ 系列。默认列表已避开这些模型。
 

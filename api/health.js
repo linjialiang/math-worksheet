@@ -137,7 +137,7 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const { models, ignored } = readModels();
+  const { models, ignored, configured } = readModels();
   if (!models.length) {
     return send(res, 400, {
       error: '配置的模型都不能识别图片：' + (ignored.join('、') || '（空）') + '。',
@@ -154,6 +154,7 @@ module.exports = async function handler(req, res) {
   return send(res, 200, {
     ok: okCount > 0,
     keyConfigured: true,
+    source: configured ? 'env' : 'default',
     total: results.length,
     available: okCount,
     models: results,

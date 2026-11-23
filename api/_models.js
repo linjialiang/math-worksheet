@@ -10,10 +10,8 @@
 const DEFAULT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 
 const DEFAULT_MODELS = [
-  'qwen3-vl-plus',   // 视觉专用，识别手写更稳；北京 100 万免费额度
-  'qwen3.8-flash',   // 原生视觉语言，速度快；100 万免费额度
-  'qwen3.7-plus',    // 原生视觉语言；100 万免费额度
-  'qwen3.7-flash'    // 原生视觉语言；100 万免费额度
+  'qwen3.8-flash',   // 原生视觉语言，速度快、单价低，北京 100 万免费额度
+  'qwen4-max'        // 原生视觉旗舰，额度有效期更长，作为兜底
 ];
 
 // 能识图的模型：
@@ -23,8 +21,8 @@ const DEFAULT_MODELS = [
 // 纯文本模型（qwen-plus、qwen-max、qwen-turbo、qwen3-max 等）不能看图。
 const VISION_MODEL_RE = /^(?:qwen[\d.]*-vl|qvq|qwen[\d.]*-omni|qwen(?:3\.[5-9]|[4-9])|qwen[\d.]*-ocr)(?:-|$)/i;
 
-// Qwen3-VL 与 Qwen3.5+ 默认开启思考模式，批改只需要照读数字，关掉可显著缩短耗时。
-const THINKING_TOGGLE_RE = /^qwen3(?:\.\d+)?-(?:vl-)?(?:plus|flash|max)(?:-|$)/i;
+// Qwen3-VL、Qwen3.5+ 与 Qwen4+ 默认开启思考模式，批改只需要照读数字，关掉可显著缩短耗时。
+const THINKING_TOGGLE_RE = /^(?:qwen3(?:\.\d+)?|qwen[4-9])-(?:vl-)?(?:plus|flash|max)(?:-|$)/i;
 
 function isVisionModel(name) {
   return VISION_MODEL_RE.test(String(name == null ? '' : name).trim());
